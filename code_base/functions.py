@@ -49,10 +49,58 @@ def custom_loss(y_pred: torch.Tensor, y_true: torch.Tensor):
 def compute_performance(
     y_pred: torch.Tensor, y_true: torch.Tensor, device: torch.device
 ):
-    # TODO: Implement accuracy calculation where p_c of y_true is 1
-    # TODO: Intersection Over Union for bounding boxes
-    # overall performance = mean(accuracy and IoU)
-    pass
+    """
+    Computes the accuracy of predictions. 
+    When the Pc of y_true is 0, no object is present, and the prediction is correct when Pc of y_pred < 0.
+    When the Pc of y_true is 1, there is an object present, and the prediction is correct when both the predicted class
+    is correct and the IOU of the bounding boxes is > 0.5. 
+
+    :param y_pred: Tensor of shape (batch_size, 15). Looks like
+                   y_pred = [[Pc, bx, by, bh, bw, c1, .., c10], [...], ...]
+                   Where c1 is the probability of class 1 in box
+
+    :param y_true: Tensor of size (batch_size, 6). Looks like
+                   y_true = [[Pc, bx, by, bh, bw, C]], [...], ...]
+                   Where C is the class label (a float, but one of integers 0-9)
+    """
+    correct = 0
+
+    for i, pred in enumerate(y_pred):
+        # If Pc == 0 then only Pc is relevant. If predicted Pc is < 0 then confidence is < 0.5 and prediction is correct
+        if y_true[i][0] == torch.tensor(0):
+            if pred[0] < 0:
+                correct += 1
+
+        else: 
+            if pred[0] >= 0: # Object presence predicted to be more than 50% likely
+                # Get the predicted class
+                max_value, max_index = torch.max(pred[5:], 0)
+                if max_index == y_true[i][5]:  # Class prediction is correct
+                    # Get corner coords for prediction box
+                    b_x_pred, b_y_pred, b_h_pred, b_w_pred = pred[1:5]
+                    x_top_pred = b_x_pred + b_w_pred / 2
+                    y_top_pred = b_y_pred + b_h_pred / 2
+                    x_bottom_pred = b_x_pred - b_w_pred / 2
+                    y_bottom_pred = b_y_pred - b_h_pred / 2
+                    # Get corner coords for label box
+                    b_x_label, b_y_label, b_h_label, b_w_label = y_true[i][1:5]
+                    x_top_label = b_x_label + b_w_label / 2
+                    y_top_label = b_y_label + b_h_label / 2
+                    x_bottom_label = b_x_label - b_w_label / 2
+                    y_bottom_label = b_y_label - b_h_label / 2
+                    
+                    # Calculating the intersection
+                    intersection_w = max(0, min(x_top_pred, x_top_label) - max(x_bottom_label, x_bottom_pred))
+                    intersection_h = max(0, min(y_top_label, y_top_pred) - max(y_bottom_label, y_bottom_pred))
+                    intersection = intersection_w * intersection_h
+                    # Calculating the union
+                    union = (b_w_label * b_h_label) + (b_w_pred * b_h_pred) - intersection
+
+                    # If IOU > 0.5, the bounding box is "correct"
+                    if (intersection / union) > 0.5:
+                        correct += 1  # Both bounding box location and predicted class are deemed correct
+
+    return correct / len(y_pred)
 
 
 # TODO: Compute accuracy each epoch
@@ -78,7 +126,7 @@ def train(
         loss_train = 0.0
         loss_val = 0.0
 
-        for imgs, labels in train_loader:
+        for i, (imgs, labels) in enumerate(train_loader):
 
             imgs = imgs.to(device)
             labels = labels.to(device)
@@ -91,6 +139,9 @@ def train(
             optimizer.zero_grad()
 
             loss_train += loss.item()
+            if (epoch == 1 or epoch % 5 == 0) and (i+1 == n_batch_train):
+                print(f"Training accuracy for epoch {epoch}: {compute_performance(outputs, labels, device)}")
+
 
         losses_train.append(loss_train / n_batch_train)
 
