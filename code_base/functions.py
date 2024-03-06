@@ -114,7 +114,8 @@ def train(
     device: torch.device,
 ):
 
-    n_batch = len(train_loader)
+    n_batch_train = len(train_loader)
+    n_batch_val = len(val_loader)
     losses_train = []
     losses_val = []
     model.train()
@@ -139,10 +140,14 @@ def train(
 
             loss_train += loss.item()
 
+<<<<<<< HEAD
         losses_train.append(loss_train / n_batch)
+=======
+        losses_train.append(loss_train / n_batch_train)
+
+>>>>>>> 12df7a4fe2ec1ecd54c559305fff5c5463c0cb08
         model.eval()
         with torch.no_grad():
-            loss_val = 0.0
             for imgs, labels in val_loader:
                 imgs = imgs.to(device)
                 labels = labels.to(device)
@@ -150,11 +155,11 @@ def train(
                 outputs = model(imgs)
                 loss = loss_fn(outputs, labels)
                 loss_val += loss.item()
-            losses_val.append(loss_val / n_batch)
+            losses_val.append(loss_val / n_batch_val)
 
         if epoch == 1 or epoch % 5 == 0:
             print(
-                f"{datetime.now().time()}, {epoch}, train_loss: {loss_train/n_batch}, val_loss: {loss_val/n_batch}"
+                f"{datetime.now().time()}, {epoch}, train_loss: {loss_train/n_batch_train}, val_loss: {loss_val/n_batch_val}"
             )
             print(f"y_pred shape: {outputs.shape}")
             print(f"y_true shape: {labels.shape}")
