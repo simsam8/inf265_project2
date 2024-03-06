@@ -74,7 +74,7 @@ def compute_performance(
         else: 
             if pred[0] >= 0: # Object presence predicted to be more than 50% likely
                 # Get the predicted class
-                _, max_index = torch.max(pred[5:])
+                max_value, max_index = torch.max(pred[5:], 0)
                 if max_index == y_true[i][5]:  # Class prediction is correct
                     # Get corner coords for prediction box
                     b_x_pred, b_y_pred, b_h_pred, b_w_pred = pred[1:5]
@@ -126,7 +126,7 @@ def train(
         loss_train = 0.0
         loss_val = 0.0
 
-        for imgs, labels in train_loader:
+        for i, (imgs, labels) in enumerate(train_loader):
 
             imgs = imgs.to(device)
             labels = labels.to(device)
@@ -139,13 +139,12 @@ def train(
             optimizer.zero_grad()
 
             loss_train += loss.item()
+            if (epoch == 1 or epoch % 5 == 0) and (i+1 == n_batch_train):
+                print(f"Training accuracy for epoch {epoch}: {compute_performance(outputs, labels, device)}")
 
-<<<<<<< HEAD
-        losses_train.append(loss_train / n_batch)
-=======
+
         losses_train.append(loss_train / n_batch_train)
 
->>>>>>> 12df7a4fe2ec1ecd54c559305fff5c5463c0cb08
         model.eval()
         with torch.no_grad():
             for imgs, labels in val_loader:
@@ -161,7 +160,5 @@ def train(
             print(
                 f"{datetime.now().time()}, {epoch}, train_loss: {loss_train/n_batch_train}, val_loss: {loss_val/n_batch_val}"
             )
-            print(f"y_pred shape: {outputs.shape}")
-            print(f"y_true shape: {labels.shape}")
 
     return losses_train, losses_val
