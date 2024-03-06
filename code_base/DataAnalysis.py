@@ -23,6 +23,8 @@ class DataAnalysis:
         print(f"Dataset shape: {imgs.shape}")
         print(f"Image shape: {imgs[0].shape}")
 
+        # TODO: Images with no object are labeled with class 1
+        #       Add count for images with no objects
         class_counts = {}
         for label_vector in labels:
             label = int(label_vector[-1])
@@ -44,6 +46,9 @@ class DataAnalysis:
         ax.legend()
         plt.show()
 
+    # TODO: For both plot_instances methods:
+    #       Images with no object and label 1 are plotted together. Separate them.
+
     @staticmethod
     def plot_instances(dataset, class_n, n_instances=4):
         fig, axes = plt.subplots(nrows=1, ncols=n_instances, tight_layout=True)
@@ -58,8 +63,8 @@ class DataAnalysis:
         fig.suptitle(f"Label: {class_n}", y=0.7)
         plt.show()
 
-    # TODO: Plot bounding box for predictions
-    #       Fix bug that removes bbox when rerunning code block in notebook
+    # TODO: Plot bounding box for predictions.
+    #       Fix bug that removes bbox when rerunning code block in notebook.
     @staticmethod
     def plot_instances_with_bounding_box(
         dataset, class_n, n_instances=4, predictions=None
