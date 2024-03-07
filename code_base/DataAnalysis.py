@@ -23,22 +23,28 @@ class DataAnalysis:
         print(f"Dataset shape: {imgs.shape}")
         print(f"Image shape: {imgs[0].shape}")
 
-        # TODO: Images with no object are labeled with class 1
-        #       Add count for images with no objects
         class_counts = {}
         for label_vector in labels:
             label = int(label_vector[-1])
-            if label in class_counts:
+            is_object = int(label_vector[0]) == 1
+            if is_object and label in class_counts:
                 class_counts[label] += 1
-            else:
+            elif is_object:
                 class_counts[label] = 1
+            else:
+                if -1 in class_counts:
+                    class_counts[-1] += 1
+                else:
+                    class_counts[-1] = 1
 
-        print("Dataset class distribution")
+        print("\n----- Dataset class distribution (-1 for no object) -----")
         for label, count in sorted(class_counts.items()):
             print(f"Class {label}: {count} examples")
 
     @staticmethod
-    def plot_performance_over_time(train_loss, val_loss, title, label1="Train Loss", label2="Val Loss"):
+    def plot_performance_over_time(
+        train_loss, val_loss, title, label1="Train Loss", label2="Val Loss"
+    ):
         _, ax = plt.subplots()
         ax.set_title(title)
         ax.plot(train_loss, label=label1)
@@ -46,13 +52,17 @@ class DataAnalysis:
         ax.legend()
         plt.show()
 
-    # TODO: For both plot_instances methods:
-    #       Images with no object and label 1 are plotted together. Separate them.
-
     @staticmethod
-    def plot_instances(dataset, class_n, n_instances=4):
+    def plot_instances(dataset, class_n=None, n_instances=4):
         fig, axes = plt.subplots(nrows=1, ncols=n_instances, tight_layout=True)
-        imgs = [img for (img, label) in dataset if int(label[-1]) == class_n]
+        if class_n is None:
+            imgs = [img for (img, label) in dataset if int(label[0]) == 0]
+        else:
+            imgs = [
+                img
+                for (img, label) in dataset
+                if int(label[-1]) == class_n and int(label[0]) == 1
+            ]
 
         for j, ax in enumerate(axes.flat):
             # Plot image
@@ -63,20 +73,34 @@ class DataAnalysis:
         fig.suptitle(f"Label: {class_n}", y=0.7)
         plt.show()
 
-    # TODO: Plot bounding box for predictions.
-    #       Fix bug that removes bbox when rerunning code block in notebook.
+    # TODO: Fix bug that removes bbox when rerunning code block in notebook.
     @staticmethod
     def plot_instances_with_bounding_box(
-        dataset, class_n, n_instances=4, predictions=None
+        dataset, class_n=None, n_instances=4, predictions=None
     ):
         fig, axes = plt.subplots(nrows=1, ncols=n_instances, tight_layout=True)
-        imgs = [img for (img, label) in dataset if int(label[-1]) == class_n]
-        b_boxes = [label[1:5] for (_, label) in dataset if int(label[-1]) == class_n]
-        objects = [label[0] for (_, label) in dataset if int(label[-1]) == class_n]
+
+        if class_n is None:
+            imgs = [img for (img, label) in dataset if int(label[0]) == 0]
+        else:
+            imgs = [
+                img
+                for (img, label) in dataset
+                if int(label[-1]) == class_n and int(label[0]) == 1
+            ]
+            b_boxes = [
+                label[1:5]
+                for (_, label) in dataset
+                if int(label[-1]) == class_n and int(label[0] == 1)
+            ]
+
+        # TODO: implement plotting for predicted bounding boxes
+        if predictions is not None:
+            b_boxes_prediction = ...
 
         for j, ax in enumerate(axes.flat):
             # Don't plot bbox when there is no object
-            if objects[j] == 0:
+            if class_n is None:
                 img_out = imgs[j]
             # Plot when there is
             else:
