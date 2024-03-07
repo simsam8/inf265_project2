@@ -62,6 +62,8 @@ def compute_performance(
     :param y_true: Tensor of size (batch_size, 6). Looks like
                    y_true = [[Pc, bx, by, bh, bw, C]], [...], ...]
                    Where C is the class label (a float, but one of integers 0-9)
+    :return: triple of (accuracy, number of correct predictions, length of y_pred). The last two are included so that it is possible to 
+             keep track of the running average across batches/epochs. 
     """
     correct = 0
 
@@ -100,10 +102,9 @@ def compute_performance(
                     if (intersection / union) > 0.5:
                         correct += 1  # Both bounding box location and predicted class are deemed correct
 
-    return correct / len(y_pred)
+    return correct / len(y_pred), correct, len(y_pred)
 
 
-# TODO: Compute accuracy each epoch
 def train(
     n_epochs: int,
     optimizer: optim.Optimizer,
@@ -118,13 +119,20 @@ def train(
     n_batch_val = len(val_loader)
     losses_train = []
     losses_val = []
+    performance_train = []
+    performance_val = []
     model.train()
     optimizer.zero_grad()
 
     for epoch in range(1, n_epochs + 1):
 
         loss_train = 0.0
+        n_correct_train = 0.0
+        total_predictions_train = 0
         loss_val = 0.0
+        n_correct_val = 0.0
+        total_predictions_val = 0
+
 
         for i, (imgs, labels) in enumerate(train_loader):
 
@@ -137,13 +145,15 @@ def train(
             loss.backward()
             optimizer.step()
             optimizer.zero_grad()
-
             loss_train += loss.item()
-            if (epoch == 1 or epoch % 5 == 0) and (i+1 == n_batch_train):
-                print(f"Training accuracy for epoch {epoch}: {compute_performance(outputs, labels, device)}")
 
+            # Keep track of performance
+            _, batch_n_correct, n_preds = compute_performance(outputs, labels, device)
+            total_predictions_train += n_preds
+            n_correct_train += batch_n_correct
 
         losses_train.append(loss_train / n_batch_train)
+        performance_train.append(n_correct_train / total_predictions_train)
 
         model.eval()
         with torch.no_grad():
@@ -154,11 +164,16 @@ def train(
                 outputs = model(imgs)
                 loss = loss_fn(outputs, labels)
                 loss_val += loss.item()
+                _, batch_n_correct, n_preds = compute_performance(outputs, labels, device)
+                total_predictions_val += n_preds
+                n_correct_val += batch_n_correct 
             losses_val.append(loss_val / n_batch_val)
+            performance_val.append(n_correct_val / total_predictions_val)
 
         if epoch == 1 or epoch % 5 == 0:
             print(
-                f"{datetime.now().time()}, {epoch}, train_loss: {loss_train/n_batch_train}, val_loss: {loss_val/n_batch_val}"
+                f"""{datetime.now().time()}, {epoch}, train_loss: {loss_train/n_batch_train}, train_performance: {round(n_correct_train / total_predictions_train, 3)*100}%
+                val_loss: {loss_val/n_batch_val}, val_performance: {round(n_correct_val / total_predictions_val, 3)*100}%"""
             )
 
-    return losses_train, losses_val
+    return losses_train, losses_val, performance_train, performance_val
