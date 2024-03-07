@@ -50,10 +50,12 @@ def compute_performance(
     y_pred: torch.Tensor, y_true: torch.Tensor, device: torch.device
 ):
     """
-    Computes the accuracy of predictions. 
-    When the Pc of y_true is 0, no object is present, and the prediction is correct when Pc of y_pred < 0.
-    When the Pc of y_true is 1, there is an object present, and the prediction is correct when both the predicted class
-    is correct and the IOU of the bounding boxes is > 0.5. 
+    Computes the accuracy of predictions.
+    When the Pc of y_true is 0, no object is present,
+    and the prediction is correct when Pc of y_pred < 0.
+    When the Pc of y_true is 1, there is an object present,
+    and the prediction is correct when both the predicted class
+    is correct and the IOU of the bounding boxes is > 0.5.
 
     :param y_pred: Tensor of shape (batch_size, 15). Looks like
                    y_pred = [[Pc, bx, by, bh, bw, c1, .., c10], [...], ...]
@@ -62,45 +64,61 @@ def compute_performance(
     :param y_true: Tensor of size (batch_size, 6). Looks like
                    y_true = [[Pc, bx, by, bh, bw, C]], [...], ...]
                    Where C is the class label (a float, but one of integers 0-9)
-    :return: triple of (accuracy, number of correct predictions, length of y_pred). The last two are included so that it is possible to 
-             keep track of the running average across batches/epochs. 
+    :return: triple of (accuracy, number of correct predictions, length of y_pred).
+            The last two are included so that it is possible to
+            keep track of the running average across batches/epochs.
     """
     correct = 0
 
-    for i, pred in enumerate(y_pred):
-        # If Pc == 0 then only Pc is relevant. If predicted Pc is < 0 then confidence is < 0.5 and prediction is correct
-        if y_true[i][0] == torch.tensor(0):
-            if pred[0] < 0:
-                correct += 1
+    with torch.no_grad():
+        for i, pred in enumerate(y_pred):
+            # If Pc == 0 then only Pc is relevant.
+            # If predicted Pc is < 0 then confidence is < 0.5 and prediction is correct
+            if y_true[i][0] == torch.tensor(0):
+                if pred[0] < 0:
+                    correct += 1
 
-        else: 
-            if pred[0] >= 0: # Object presence predicted to be more than 50% likely
-                # Get the predicted class
-                max_value, max_index = torch.max(pred[5:], 0)
-                if max_index == y_true[i][5]:  # Class prediction is correct
-                    # Get corner coords for prediction box
-                    b_x_pred, b_y_pred, b_h_pred, b_w_pred = pred[1:5]
-                    x_top_pred = b_x_pred + b_w_pred / 2
-                    y_top_pred = b_y_pred + b_h_pred / 2
-                    x_bottom_pred = b_x_pred - b_w_pred / 2
-                    y_bottom_pred = b_y_pred - b_h_pred / 2
-                    # Get corner coords for label box
-                    b_x_label, b_y_label, b_h_label, b_w_label = y_true[i][1:5]
-                    x_top_label = b_x_label + b_w_label / 2
-                    y_top_label = b_y_label + b_h_label / 2
-                    x_bottom_label = b_x_label - b_w_label / 2
-                    y_bottom_label = b_y_label - b_h_label / 2
-                    
-                    # Calculating the intersection
-                    intersection_w = max(0, min(x_top_pred, x_top_label) - max(x_bottom_label, x_bottom_pred))
-                    intersection_h = max(0, min(y_top_label, y_top_pred) - max(y_bottom_label, y_bottom_pred))
-                    intersection = intersection_w * intersection_h
-                    # Calculating the union
-                    union = (b_w_label * b_h_label) + (b_w_pred * b_h_pred) - intersection
+            else:
+                if pred[0] >= 0:  # Object presence predicted to be more than 50% likely
+                    # Get the predicted class
+                    max_value, max_index = torch.max(pred[5:], 0)
+                    if max_index == y_true[i][5]:  # Class prediction is correct
+                        # Get corner coords for prediction box
+                        b_x_pred, b_y_pred, b_h_pred, b_w_pred = pred[1:5]
+                        x_top_pred = b_x_pred + b_w_pred / 2
+                        y_top_pred = b_y_pred + b_h_pred / 2
+                        x_bottom_pred = b_x_pred - b_w_pred / 2
+                        y_bottom_pred = b_y_pred - b_h_pred / 2
+                        # Get corner coords for label box
+                        b_x_label, b_y_label, b_h_label, b_w_label = y_true[i][1:5]
+                        x_top_label = b_x_label + b_w_label / 2
+                        y_top_label = b_y_label + b_h_label / 2
+                        x_bottom_label = b_x_label - b_w_label / 2
+                        y_bottom_label = b_y_label - b_h_label / 2
 
-                    # If IOU > 0.5, the bounding box is "correct"
-                    if (intersection / union) > 0.5:
-                        correct += 1  # Both bounding box location and predicted class are deemed correct
+                        # Calculating the intersection
+                        intersection_w = max(
+                            0,
+                            min(x_top_pred, x_top_label)
+                            - max(x_bottom_label, x_bottom_pred),
+                        )
+                        intersection_h = max(
+                            0,
+                            min(y_top_label, y_top_pred)
+                            - max(y_bottom_label, y_bottom_pred),
+                        )
+                        intersection = intersection_w * intersection_h
+                        # Calculating the union
+                        union = (
+                            (b_w_label * b_h_label)
+                            + (b_w_pred * b_h_pred)
+                            - intersection
+                        )
+
+                        # If IOU > 0.5, the bounding box is "correct"
+                        # Both bounding box location and predicted class are deemed correct
+                        if (intersection / union) > 0.5:
+                            correct += 1
 
     return correct / len(y_pred), correct, len(y_pred)
 
@@ -133,7 +151,6 @@ def train(
         n_correct_val = 0.0
         total_predictions_val = 0
 
-
         for i, (imgs, labels) in enumerate(train_loader):
 
             imgs = imgs.to(device)
@@ -164,16 +181,22 @@ def train(
                 outputs = model(imgs)
                 loss = loss_fn(outputs, labels)
                 loss_val += loss.item()
-                _, batch_n_correct, n_preds = compute_performance(outputs, labels, device)
+                _, batch_n_correct, n_preds = compute_performance(
+                    outputs, labels, device
+                )
                 total_predictions_val += n_preds
-                n_correct_val += batch_n_correct 
+                n_correct_val += batch_n_correct
             losses_val.append(loss_val / n_batch_val)
             performance_val.append(n_correct_val / total_predictions_val)
 
         if epoch == 1 or epoch % 5 == 0:
             print(
-                f"""{datetime.now().time()}, {epoch}, train_loss: {loss_train/n_batch_train}, train_performance: {round(n_correct_train / total_predictions_train, 3)*100}%
-                val_loss: {loss_val/n_batch_val}, val_performance: {round(n_correct_val / total_predictions_val, 3)*100}%"""
+                f"{datetime.now().time()}\n"
+                f"Epoch: {epoch}\n"
+                f"train_loss:         {loss_train/n_batch_train:>10.3f}\n"
+                f"val_loss:           {loss_val/n_batch_val:>10.3f}\n"
+                f"train_performance:  {((n_correct_train / total_predictions_train)*100):>10.3f}%\n"
+                f"val_performance:    {((n_correct_val / total_predictions_val)*100):>10.3f}%\n"
             )
 
     return losses_train, losses_val, performance_train, performance_val
