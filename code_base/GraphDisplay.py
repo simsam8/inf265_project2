@@ -4,11 +4,11 @@ import matplotlib.pyplot as plt
 class GraphDisplay:
 
     @staticmethod
-    def plot_performance_over_time(train_loss, val_loss, title):
+    def plot_performance_over_time(train_loss, val_loss, title, label1="Train Loss", label2="Val Loss"):
         _, ax = plt.subplots()
         ax.set_title(title)
-        ax.plot(train_loss, label="train loss")
-        ax.plot(val_loss, label="val loss")
+        ax.plot(train_loss, label=label1)
+        ax.plot(val_loss, label=label2)
         ax.legend()
         plt.show()
 
