@@ -200,3 +200,93 @@ def train(
             )
 
     return losses_train, losses_val, performance_train, performance_val
+
+
+def train_models(
+    networks: list[nn.Module],
+    hyper_parameters: dict,
+    batch_size: int,
+    n_epochs: int,
+    train_loader: DataLoader,
+    val_loader: DataLoader,
+    device: torch.device,
+    seed: int,
+):
+    """
+    Trains and returns models with different hyper parameters and
+    model architectures.
+
+    Parameters:
+    networks: list of model architectures
+    hyper_parameters: hyper parameters to train on
+    batch_size: batch size
+    n_epochs: epochs
+    train_loader: DataLoader for training set
+    val_loader: DataLoader for validation set
+    device: device to train on
+    seed: seed for randomization
+    """
+    loss_fn = custom_loss  # using our implemented loss function
+
+    print("\tGlobal parameters:")
+    print(f"Batch size: {batch_size}")
+    print(f"Epochs: {n_epochs}")
+    print(f"Seed: {seed}")
+
+    models = []
+    train_performances = []
+    val_performances = []
+    train_losses = []
+    val_losses = []
+
+    # Hyperparameter testing on each defined model architecture
+    for network in networks:
+        for hparam in hyper_parameters:
+            print("\n", "=" * 50)
+            print(f"Model architecture: {network}\n")
+            print("\tCurrent parameters: ")
+            [print(f"{key}:{value}") for key, value in hparam.items()]
+
+            model = network()
+            model.to(device)
+            # TODO?: Using only SGD at the moment, could possibly add optimizers
+            # as parameters.
+            optimizer = optim.SGD(model.parameters(), **hparam)
+
+            print("Starting training using above parameters:\n")
+            train_loss, val_loss, train_performance, val_performance = train(
+                n_epochs, optimizer, model, loss_fn, train_loader, val_loader, device
+            )
+
+            models.append(model)
+            train_performances.append(train_performance)
+            val_performances.append(val_performance)
+            train_losses.append(train_loss)
+            val_losses.append(val_loss)
+
+            print("\n", "-" * 3, "Performance", "-" * 3)
+            print(f"Training performance: {train_performance[-1]*100:.2f}%")
+            print(f"Validation performance: {val_performance[-1]*100:.2f}%")
+
+    return models, train_performances, val_performances, train_losses, val_losses
+
+
+def select_best_model(
+    models: list[nn.Module], val_performances: list[list[float]]
+) -> tuple[nn.Module, int]:
+    """
+    Selects the model with highest validation performance.
+
+    Parameters:
+    models: list of trained models
+    val_performances: list of validation performances of models
+
+    return: selected_model, index of model
+    """
+    # TODO?: Might change the input list of val performance from list of lists
+    # to only the final performance value
+    last_val_performances = [val_perf[-1] for val_perf in val_performances]
+    selected_idx = last_val_performances.index(max(last_val_performances))
+    selected_model = models[selected_idx]
+
+    return selected_model, selected_idx
