@@ -25,6 +25,9 @@ class TestNet(nn.Module):
         x = self.fc3(x)
         return x
 
+    def __str__(self) -> str:
+        return "TestNet"
+
 
 class LeNetVariant(nn.Module):
     """
@@ -51,3 +54,6 @@ class LeNetVariant(nn.Module):
         x = F.sigmoid(self.fc2(x))
         x = self.fc3(x)
         return x
+
+    def __str__(self) -> str:
+        return "LeNetVariant"
