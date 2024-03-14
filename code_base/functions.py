@@ -271,3 +271,28 @@ def select_best_model(
     selected_model = models[selected_idx]
 
     return selected_model, selected_idx
+
+
+def evaluate_performance(model: nn.Module, loader: DataLoader, device: torch.device):
+    """
+    Evaluate the performance of a model.
+    """
+    total_predictions = 0
+    n_correct = 0
+    performance = []
+    model_outputs = []
+    model.eval()
+    with torch.no_grad():
+        for imgs, labels in loader:
+            imgs = imgs.to(device)
+            labels = labels.to(device)
+
+            outputs = model(imgs)
+            model_outputs.append(outputs)
+            _, batch_n_correct, n_preds = compute_performance(outputs, labels, device)
+            total_predictions += n_preds
+            n_correct += batch_n_correct
+        performance = n_correct / total_predictions
+
+    model_output = torch.concat(model_outputs)
+    return performance, model_output
