@@ -1,49 +1,30 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from datetime import datetime
 
 
-def _total_loss(y_pred: torch.Tensor, y_true: torch.Tensor):
-    loss_BCE = nn.BCEWithLogitsLoss()
-    loss_mse = nn.MSELoss()
-    loss_CE = nn.CrossEntropyLoss()
+def localization_loss(y_pred: torch.Tensor, y_true: torch.Tensor):
+    """
+    Calculates the localization loss.
+    If there is no object (y_true[0] == 0), then only detection loss is calculated.
+    Otherwise the sum of detection, bounding box and classification loss is calculated.
+    """
+    detection_loss = F.binary_cross_entropy_with_logits(y_pred[:, 0], y_true[:, 0])
+    bbox_loss = F.mse_loss(y_pred[:, 1:5], y_true[:, 1:5])
+    classification_loss = F.cross_entropy(y_pred[:, 5:], y_true[:, 5].to(torch.long))
 
-    detection = loss_BCE(y_pred[:, 0], y_true[:, 0])
-    localization = (
-        loss_mse(y_pred[:, 1], y_true[:, 1])
-        + loss_mse(y_pred[:, 2], y_true[:, 2])
-        + loss_mse(y_pred[:, 3], y_true[:, 3])
-        + loss_mse(y_pred[:, 4], y_true[:, 4])
+    loss = torch.sum(
+        torch.where(
+            y_true[:, 0] == 0,
+            detection_loss,
+            detection_loss + bbox_loss + classification_loss,
+        ),
+        dim=0,
     )
-    classification = loss_CE(y_pred[:, 5:], y_true[:, 5].to(torch.long))
-
-    return detection + localization + classification
-
-
-def _detection_loss(y_pred: torch.Tensor, y_true: torch.Tensor):
-    loss_BCE = nn.BCEWithLogitsLoss()
-    detection = loss_BCE(y_pred[:, 0], y_true[:, 0])
-    return detection
-
-
-def custom_loss(y_pred: torch.Tensor, y_true: torch.Tensor):
-    no_detection_mask = y_true[:, 0] == 0
-
-    no_object_labels, no_object_preds = (
-        y_true[no_detection_mask],
-        y_pred[no_detection_mask],
-    )
-    is_object_labels, is_object_preds = (
-        y_true[~no_detection_mask],
-        y_pred[~no_detection_mask],
-    )
-
-    detection_loss = _detection_loss(no_object_preds, no_object_labels)
-    combined_loss = _total_loss(is_object_preds, is_object_labels)
-
-    return detection_loss + combined_loss
+    return loss
 
 
 def compute_performance(
@@ -226,7 +207,7 @@ def train_models(
     device: device to train on
     seed: seed for randomization
     """
-    loss_fn = custom_loss  # using our implemented loss function
+    loss_fn = localization_loss  # using our implemented loss function
 
     print("\tGlobal parameters:")
     print(f"Batch size: {batch_size}")
