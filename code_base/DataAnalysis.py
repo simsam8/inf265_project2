@@ -15,6 +15,7 @@ class DataAnalysis:
 
         # Display useful information about the data
         print(f"Type of images in dataset: {type(imgs[0])}")
+        print(f"First image in dataset: {imgs[0]}")
         print(
             "First data label (a vector of P_c, box_x_pos, box_y_pos, box_height, box_width, class label): ",
             labels[0],
@@ -53,68 +54,69 @@ class DataAnalysis:
         plt.show()
 
     @staticmethod
-    def plot_instances(dataset, class_n=None, n_instances=4):
-        fig, axes = plt.subplots(nrows=1, ncols=n_instances, tight_layout=True)
-        if class_n is None:
-            imgs = [img for (img, label) in dataset if int(label[0]) == 0]
-        else:
-            imgs = [
-                img
-                for (img, label) in dataset
-                if int(label[-1]) == class_n and int(label[0]) == 1
-            ]
-
-        for j, ax in enumerate(axes.flat):
-            # Plot image
-            ax.imshow(imgs[j].permute(1, 2, 0), cmap="gray")
-            # Remove axis
-            ax.axis("off")
-
-        fig.suptitle(f"Label: {class_n}", y=0.7)
-        plt.show()
-
-    # TODO: Fix bug that removes bbox when rerunning code block in notebook.
-    @staticmethod
     def plot_instances_with_bounding_box(
         dataset, class_n=None, n_instances=4, predictions=None
     ):
+        """
+        Plot instances and their bounding box from the given dataset.
+        Optionally plot the bounding box of predictions.
+        """
         fig, axes = plt.subplots(nrows=1, ncols=n_instances, tight_layout=True)
 
         if class_n is None:
-            imgs = [img for (img, label) in dataset if int(label[0]) == 0]
+            imgs = [img.clone() for (img, label) in dataset if int(label[0]) == 0]
         else:
             imgs = [
-                img
+                img.clone()
                 for (img, label) in dataset
                 if int(label[-1]) == class_n and int(label[0]) == 1
             ]
             b_boxes = [
-                label[1:5]
+                label[1:5].clone()
                 for (_, label) in dataset
                 if int(label[-1]) == class_n and int(label[0] == 1)
             ]
 
-        # TODO: implement plotting for predicted bounding boxes
         if predictions is not None:
-            b_boxes_prediction = ...
+            b_boxes_prediction = [
+                pred[1:5].clone()
+                for pred in predictions
+                if torch.argmax(pred[5:]) == class_n and pred[0] >= 0
+            ]
 
         for j, ax in enumerate(axes.flat):
+            img_out = imgs[j]
+
             # Don't plot bbox when there is no object
             if class_n is None:
                 img_out = imgs[j]
-            # Plot when there is
             else:
                 # Scale bbox cx, cy, width, height with dimensions of image
-                b_boxes[j][0::2] *= imgs[j].shape[2]
-                b_boxes[j][1::2] *= imgs[j].shape[1]
+                b_boxes[j][0::2] *= img_out.shape[2]
+                b_boxes[j][1::2] *= img_out.shape[1]
 
                 # Apply bbox to image
                 img_out = draw_bounding_boxes(
-                    convert_image_dtype(imgs[j], torch.uint8),
+                    convert_image_dtype(img_out, torch.uint8),
                     box_convert(b_boxes[j].view(1, 4), "cxcywh", "xyxy"),
                     width=1,
                     colors="green",
                 )
+            if predictions is not None:
+                # skip if there is no predicted bounding box
+                if j < len(b_boxes_prediction):
+                    # clip box values less than 0
+                    b_boxes_prediction[j] = torch.clamp_min(b_boxes_prediction[j], 0)
+                    # Scale bbox cx, cy, width, height with dimensions of image
+                    b_boxes_prediction[j][0::2] *= img_out.shape[2]
+                    b_boxes_prediction[j][1::2] *= img_out.shape[1]
+                    img_out = draw_bounding_boxes(
+                        img_out,
+                        box_convert(b_boxes_prediction[j].view(1, 4), "cxcywh", "xyxy"),
+                        width=1,
+                        colors="red",
+                    )
+
             ax.imshow(img_out.permute(1, 2, 0))
             ax.axis("off")
         fig.suptitle(f"Label: {class_n}", y=0.7)
