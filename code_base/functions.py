@@ -16,7 +16,7 @@ def localization_loss(y_pred: torch.Tensor, y_true: torch.Tensor):
     bbox_loss = F.mse_loss(y_pred[:, 1:5], y_true[:, 1:5])
     classification_loss = F.cross_entropy(y_pred[:, 5:], y_true[:, 5].to(torch.long))
 
-    loss = torch.sum(
+    loss = torch.mean(
         torch.where(
             y_true[:, 0] == 0,
             detection_loss,
