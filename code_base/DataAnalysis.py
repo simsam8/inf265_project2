@@ -61,30 +61,49 @@ class DataAnalysis:
         Plot instances and their bounding box from the given dataset.
         Optionally plot the bounding box of predictions.
         """
-        fig, axes = plt.subplots(nrows=1, ncols=n_instances, tight_layout=True)
+        fig, axes = plt.subplots(nrows=1, ncols=n_instances, tight_layout=False)
 
-        if class_n is None:
-            imgs = [img.clone() for (img, label) in dataset if int(label[0]) == 0]
-        else:
-            imgs = [
-                img.clone()
-                for (img, label) in dataset
-                if int(label[-1]) == class_n and int(label[0]) == 1
-            ]
-            b_boxes = [
-                label[1:5].clone()
-                for (_, label) in dataset
-                if int(label[-1]) == class_n and int(label[0] == 1)
-            ]
+        imgs = []
+        bboxes_true = []
+        bboxes_pred = []
+        object_true = []
+        object_pred = []
+        class_true = []
+        class_pred = []
+        img_index = None
+        for i, (img, label) in enumerate(dataset):
+            if len(imgs) == n_instances:
+                break
+            # Images with no object
+            if class_n is None:
+                if int(label[0]) == 0:
+                    img_index = i
+                    object_true.append(None)
+                    class_true.append(None)
+                    imgs.append(img.clone())
+            else:
+                if int(label[-1]) == class_n and int(label[0]) == 1:
+                    img_index = i
+                    object_true.append(label[0].bool())
+                    class_true.append(label[-1].int())
+                    imgs.append(img.clone())
+                    bboxes_true.append(label[1:5].clone())
 
-        if predictions is not None:
-            b_boxes_prediction = [
-                pred[1:5].clone()
-                for pred in predictions
-                if torch.argmax(pred[5:]) == class_n and pred[0] >= 0
-            ]
+            # Get prediction to the corresponding image
+            if predictions is not None and i == img_index:
+                is_object = predictions[i][0] >= 0
+                object_pred.append(is_object)
+                predicted_class = (
+                    torch.argmax(predictions[i][5:]) if is_object else None
+                )
+                class_pred.append(predicted_class)
+                bboxes_pred.append(predictions[i][1:5].clone())
 
         for j, ax in enumerate(axes.flat):
+            if predictions is not None:
+                ax.set_title(
+                    f"Pred object: {object_pred[j]}\nPred class: {class_pred[j]}"
+                )
             img_out = imgs[j]
 
             # Don't plot bbox when there is no object
@@ -92,30 +111,30 @@ class DataAnalysis:
                 img_out = imgs[j]
             else:
                 # Scale bbox cx, cy, width, height with dimensions of image
-                b_boxes[j][0::2] *= img_out.shape[2]
-                b_boxes[j][1::2] *= img_out.shape[1]
+                bboxes_true[j][0::2] *= img_out.shape[2]
+                bboxes_true[j][1::2] *= img_out.shape[1]
 
                 # Apply bbox to image
                 img_out = draw_bounding_boxes(
                     convert_image_dtype(img_out, torch.uint8),
-                    box_convert(b_boxes[j].view(1, 4), "cxcywh", "xyxy"),
+                    box_convert(bboxes_true[j].view(1, 4), "cxcywh", "xyxy"),
                     width=1,
                     colors="green",
                 )
             if predictions is not None:
-                # skip if there is no predicted bounding box
-                if j < len(b_boxes_prediction):
-                    # clip box values less than 0
-                    b_boxes_prediction[j] = torch.clamp_min(b_boxes_prediction[j], 0)
-                    # Scale bbox cx, cy, width, height with dimensions of image
-                    b_boxes_prediction[j][0::2] *= img_out.shape[2]
-                    b_boxes_prediction[j][1::2] *= img_out.shape[1]
-                    img_out = draw_bounding_boxes(
-                        img_out,
-                        box_convert(b_boxes_prediction[j].view(1, 4), "cxcywh", "xyxy"),
-                        width=1,
-                        colors="red",
-                    )
+                # clip box values less than 0
+                bboxes_pred[j] = torch.clamp_min(bboxes_pred[j], 0)
+                # Scale bbox cx, cy, width, height with dimensions of image
+                bboxes_pred[j][0::2] *= img_out.shape[2]
+                bboxes_pred[j][1::2] *= img_out.shape[1]
+
+                # Apply bbox to image
+                img_out = draw_bounding_boxes(
+                    convert_image_dtype(img_out, torch.uint8),
+                    box_convert(bboxes_pred[j].view(1, 4), "cxcywh", "xyxy"),
+                    width=1,
+                    colors="red",
+                )
 
             ax.imshow(img_out.permute(1, 2, 0))
             ax.axis("off")
