@@ -57,3 +57,28 @@ class LeNetVariant(nn.Module):
 
     def __str__(self) -> str:
         return "LeNetVariant"
+
+
+class ObjectDetect_2x3(nn.Module):
+    """
+    Architecture with output of 2x3 grid
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.conv1 = nn.Conv2d(1, 2, 3, padding=1)
+        self.max_pool = nn.MaxPool2d(2, 2)
+        self.conv2 = nn.Conv2d(2, 4, 3, padding=1)
+        self.conv3 = nn.Conv2d(4, 6, 3, padding=1)
+        self.max_pool_by_3 = nn.MaxPool2d(3, 3)
+        self.conv4 = nn.Conv2d(6, 6, 3, padding=0)
+
+    def forward(self, x):
+        # Input 1x48x60
+        x = F.relu(self.conv1(x))  # 2x48x60
+        x = self.max_pool(x)  # 2x24x30
+        x = F.relu(self.conv2(x))  # 4x24x30
+        x = self.max_pool(x)  # 4x12x15
+        x = F.relu(self.conv3(x))  # 6x12x15
+        x = self.max_pool_by_3(x)  # 6x4x5
+        x = self.conv4(x)  # 6x2x3
