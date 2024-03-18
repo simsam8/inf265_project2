@@ -1,5 +1,9 @@
 import torch
 from torch.utils.data import TensorDataset
+import matplotlib.pyplot as plt
+from torchvision.ops import box_convert
+from torchvision.transforms.functional import convert_image_dtype
+from torchvision.utils import draw_bounding_boxes
 
 
 def _global_to_local(
@@ -39,16 +43,18 @@ def _global_to_local(
     return row_index, col_index, local_tensor
 
 
-# TODO: not tested properly
-def _local_to_global(in_tensor, grid_dimensions):
+def _local_to_global(in_tensor: torch.Tensor, grid_dimensions: tuple[int, int], pos):
     x_local, y_local, w_local, h_local = in_tensor[1:5]
     rows, cols = grid_dimensions
 
     cell_w = 1 / cols
     cell_h = 1 / rows
 
-    x_global = x_local / cols + cell_w
-    y_global = y_local / rows + cell_h
+    row_index = pos // cols
+    col_index = pos % cols
+
+    x_global = x_local / cols + cell_w * col_index
+    y_global = y_local / rows + cell_h * row_index
     w_global = w_local / cols
     h_global = h_local / rows
 
@@ -98,3 +104,44 @@ def get_converted_data(
         output_datasets.append(tensor_data)
 
     return tuple(output_datasets)
+
+
+def plot_instances(dataset, n_instances, predictions=None, grid_dimensions=(2, 3)):
+    fig, axes = plt.subplots(nrows=1, ncols=n_instances)
+
+    imgs = []
+    bboxes_true = []
+    true_labels = []
+    for i, (img, label) in enumerate(dataset):
+        label = torch.flatten(label, 0, 1)
+        if len(imgs) == n_instances:
+            break
+
+        imgs.append(img.clone())
+        bbox_classes = [str(int(bbox[-1])) for bbox in label if bbox[0] != 0]
+        true_labels.append(bbox_classes)
+        label = [
+            _local_to_global(bbox, grid_dimensions, i) for (i, bbox) in enumerate(label)
+        ]
+        label = [bbox[1:5].clone() for bbox in label if bbox[0] != 0]
+        bboxes_true.append(label)
+
+    for i, ax in enumerate(axes.flat):
+        img_out = imgs[i]
+        for bbox in bboxes_true[i]:
+            bbox[0::2] *= img_out.shape[2]
+            bbox[1::2] *= img_out.shape[1]
+
+        boxes = torch.stack(bboxes_true[i])
+        boxes = box_convert(boxes, "cxcywh", "xyxy")
+
+        img_out = draw_bounding_boxes(
+            convert_image_dtype(img_out, torch.uint8),
+            boxes,
+            labels=true_labels[i],
+            colors="red",
+        )
+
+        ax.imshow(img_out.permute(1, 2, 0))
+        ax.axis("off")
+    plt.show()
