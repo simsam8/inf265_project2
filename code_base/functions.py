@@ -16,7 +16,9 @@ def time_function(func):
         end_time = time.time()
         print(f"{func.__name__} took {end_time-start_time} seconds to complete.")
         return result
+
     return wrapper
+
 
 def localization_loss(y_pred: torch.Tensor, y_true: torch.Tensor):
     """
@@ -196,7 +198,9 @@ def train(
 
             # Keep track of performance
             if task == "localization":
-                _, batch_n_correct, n_preds = compute_performance(outputs, labels, device)
+                _, batch_n_correct, n_preds = compute_performance(
+                    outputs, labels, device
+                )
                 total_predictions_train += n_preds
                 n_correct_train += batch_n_correct
             elif task == "detection":
@@ -207,7 +211,7 @@ def train(
         losses_train.append(loss_train / n_batch_train)
         if task == "localization":
             performance_train.append(n_correct_train / total_predictions_train)
-        else: 
+        else:
             performance_train.append(train_metric.compute()["map"])
 
         model.eval()
@@ -219,7 +223,7 @@ def train(
                 outputs = model(imgs)
                 loss = loss_fn(outputs, labels)
                 loss_val += loss.item()
-                if task == "localization":             
+                if task == "localization":
                     _, batch_n_correct, n_preds = compute_performance(
                         outputs, labels, device
                     )
@@ -233,11 +237,10 @@ def train(
             # Computes mean loss over batches
             losses_val.append(loss_val / n_batch_val)
 
-            if task == "localization":          
+            if task == "localization":
                 performance_val.append(n_correct_val / total_predictions_val)
-            else: 
+            else:
                 performance_val.append(val_metric.compute()["map"])
-
 
         if epoch == 1 or epoch % 5 == 0:
             print(
@@ -281,7 +284,7 @@ def train_models(
         loss_fn = localization_loss  # using our implemented loss function
     elif task == "detection":
         loss_fn = detection_loss
-    else: 
+    else:
         raise RuntimeError("set task to 'localization' or 'detection'")
     print("\tGlobal parameters:")
     print(f"Batch size: {batch_size}")
@@ -310,7 +313,14 @@ def train_models(
 
             print(f"Starting training for {task} using above parameters:\n")
             train_loss, val_loss, train_performance, val_performance = train(
-                task, n_epochs, optimizer, model, loss_fn, train_loader, val_loader, device
+                task,
+                n_epochs,
+                optimizer,
+                model,
+                loss_fn,
+                train_loader,
+                val_loader,
+                device,
             )
 
             models.append(model)
@@ -347,7 +357,9 @@ def select_best_model(
     return selected_model, selected_idx
 
 
-def evaluate_performance(task: str, model: nn.Module, loader: DataLoader, device: torch.device):
+def evaluate_performance(
+    task: str, model: nn.Module, loader: DataLoader, device: torch.device
+):
     """
     Evaluate the performance of a model.
     """
