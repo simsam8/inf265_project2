@@ -73,6 +73,7 @@ def _create_grid_boxes(
     for label in label_list:
         row, col, coords = _global_to_local(label, grid_dimensions)
         output_box[row][col] = coords
+    output_box = output_box.permute(2, 0, 1)  # CxHxW
     return output_box
 
 
@@ -113,6 +114,7 @@ def plot_instances(dataset, n_instances, predictions=None, grid_dimensions=(2, 3
     bboxes_true = []
     true_labels = []
     for i, (img, label) in enumerate(dataset):
+        label = label.permute(1, 2, 0)
         label = torch.flatten(label, 0, 1)
         if len(imgs) == n_instances:
             break
