@@ -82,3 +82,4 @@ class ObjectDetect_2x3(nn.Module):
         x = F.relu(self.conv3(x))  # 6x12x15
         x = self.max_pool_by_3(x)  # 6x4x5
         x = self.conv4(x)  # 6x2x3
+        return x
