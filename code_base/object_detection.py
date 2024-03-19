@@ -141,7 +141,7 @@ def plot_instances(dataset, n_instances, predictions=None, grid_dimensions=(2, 3
             convert_image_dtype(img_out, torch.uint8),
             boxes,
             labels=true_labels[i],
-            colors="red",
+            colors="green",
         )
 
         ax.imshow(img_out.permute(1, 2, 0))
