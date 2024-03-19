@@ -75,6 +75,31 @@ def _create_grid_boxes(
         output_box[row][col] = coords
     return output_box
 
+def convert_to_dicts(inputs: torch.Tensor, grid_height, grid_width, threshold: int=0.5):
+    """Prepares data for torchmetrics.MAP calculation. 
+    Box format: cx cy w h"""
+    preds = list()
+
+    for batch in range(input.shape[0]):
+        image_preds = {
+        "boxes": [],
+        "scores": [],
+        "labels": []
+        }
+        for h in range(grid_height):
+            for w in range(grid_width):
+                cell = inputs[batch, h, w]
+                P_c = cell[0]
+                if P_c >= inputs:
+                    # Assuming box coordinates are normalized [0, 1] relative to image dimensions
+                    box = cell[1:5]  # x_min, y_min, x_max, y_max
+                    label = cell[5].long()  # Class label
+                    image_preds["boxes"].append(torch.tensor(box.tolist()))
+                    image_preds["scores"].append(torch.tensor(P_c.item()))
+                    image_preds["labels"].append(torch.tensor(label.item()))
+
+        preds.append(image_preds)
+
 
 def get_converted_data(
     grid_dimensions: tuple[int, int]

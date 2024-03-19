@@ -6,6 +6,7 @@ from torch.utils.data import DataLoader
 from torchmetrics.detection import MeanAveragePrecision
 from datetime import datetime
 import time
+from object_detection import convert_to_dicts
 
 
 def time_function(func):
@@ -137,7 +138,8 @@ def train(
 
     for epoch in range(1, n_epochs + 1):
         if task == "detection":
-            metric = MeanAveragePrecision(iou_type="bbox")
+            train_metric = MeanAveragePrecision(box_format="cxcywh", iou_type="bbox")
+            val_metric = MeanAveragePrecision(box_format="cxcywh", iou_type="bbox")
         else:
             n_correct_train = 0.0
             total_predictions_train = 0
@@ -165,18 +167,17 @@ def train(
                 total_predictions_train += n_preds
                 n_correct_train += batch_n_correct
             elif task == "detection":
-                preds = outputs.permute(0, 2, 3, 1).flatten(1, 2) # Reshape to (batch_size, n_channels, n_cells)
-                targets = labels.permute(0, 2, 3, 1).flatten(1, 2)
-                pass
-                # outputs_dict = [dict() for img in outputs]
-                # labels_dict = [{}]
-                # metric.update(outputs_dict, labels_dict)
+                outputs_reshaped = outputs.permute(0, 2, 3, 1).flatten(1, 2).view(1, 2, 3, 6)
+                labels_reshaped = labels.permute(0, 2, 3, 1).flatten(1, 2).view(1, 2, 3, 6)
+                preds = convert_to_dicts(outputs_reshaped)
+                targets = convert_to_dicts(labels_reshaped)
+                train_metric.update(preds, targets)
 
         losses_train.append(loss_train / n_batch_train)
         if task == "localization":
             performance_train.append(n_correct_train / total_predictions_train)
         else: 
-            performance_train.append(metric.compute()["map"])
+            performance_train.append(train_metric.compute()["map"])
 
         model.eval()
         with torch.no_grad():
@@ -187,13 +188,24 @@ def train(
                 outputs = model(imgs)
                 loss = loss_fn(outputs, labels)
                 loss_val += loss.item()
+            if task == "localization":             
                 _, batch_n_correct, n_preds = compute_performance(
                     outputs, labels, device
                 )
                 total_predictions_val += n_preds
                 n_correct_val += batch_n_correct
+            elif task == "detection":
+                outputs_reshaped = outputs.permute(0, 2, 3, 1).flatten(1, 2).view(1, 2, 3, 6)
+                labels_reshaped = labels.permute(0, 2, 3, 1).flatten(1, 2).view(1, 2, 3, 6)
+                preds = convert_to_dicts(outputs_reshaped)
+                targets = convert_to_dicts(labels_reshaped)
+                val_metric.update(preds, targets)
             losses_val.append(loss_val / n_batch_val)
-            performance_val.append(n_correct_val / total_predictions_val)
+            if task == "localization":             
+                performance_val.append(n_correct_val / total_predictions_val)
+            else: 
+                performance_val.append(val_metric.compute()["map"])
+
 
         if epoch == 1 or epoch % 5 == 0:
             print(
