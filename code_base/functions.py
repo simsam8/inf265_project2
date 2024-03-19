@@ -200,11 +200,9 @@ def train(
                 total_predictions_train += n_preds
                 n_correct_train += batch_n_correct
             elif task == "detection":
-                outputs_reshaped = outputs.permute(0, 2, 3, 1)
-                labels_reshaped = labels.permute(0, 2, 3, 1)
-                preds = MAP_preprocess(outputs_reshaped)
-                targets = MAP_preprocess(labels_reshaped)
-                train_metric.update(preds, targets)
+                outputs_prep = MAP_preprocess(outputs)
+                labels_prep = MAP_preprocess(labels)
+                train_metric.update(outputs_prep, labels_prep)
 
         losses_train.append(loss_train / n_batch_train)
         if task == "localization":
@@ -228,11 +226,9 @@ def train(
                     total_predictions_val += n_preds
                     n_correct_val += batch_n_correct
                 elif task == "detection":
-                    outputs_reshaped = outputs.permute(0, 2, 3, 1)
-                    labels_reshaped = labels.permute(0, 2, 3, 1)
-                    preds = MAP_preprocess(outputs_reshaped)
-                    targets = MAP_preprocess(labels_reshaped)
-                    val_metric.update(preds, targets)
+                    outputs_prep = MAP_preprocess(outputs)
+                    labels_prep = MAP_preprocess(labels)
+                    val_metric.update(outputs_prep, labels_prep)
 
             # Computes mean loss over batches
             losses_val.append(loss_val / n_batch_val)
