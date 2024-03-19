@@ -3,8 +3,19 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader
+from torchmetrics.detection import MeanAveragePrecision
 from datetime import datetime
+import time
 
+
+def time_function(func):
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        end_time = time.time()
+        print(f"{func.__name__} took {end_time-start_time} seconds to complete.")
+        return result
+    return wrapper
 
 def localization_loss(y_pred: torch.Tensor, y_true: torch.Tensor):
     """
@@ -105,6 +116,7 @@ def compute_performance(
 
 
 def train(
+    task: str,
     n_epochs: int,
     optimizer: optim.Optimizer,
     model: nn.Module,
@@ -124,13 +136,15 @@ def train(
     optimizer.zero_grad()
 
     for epoch in range(1, n_epochs + 1):
-
+        if task == "detection":
+            metric = MeanAveragePrecision(iou_type="bbox")
+        else:
+            n_correct_train = 0.0
+            total_predictions_train = 0
+            n_correct_val = 0.0
+            total_predictions_val = 0
         loss_train = 0.0
-        n_correct_train = 0.0
-        total_predictions_train = 0
         loss_val = 0.0
-        n_correct_val = 0.0
-        total_predictions_val = 0
 
         for i, (imgs, labels) in enumerate(train_loader):
 
@@ -146,12 +160,23 @@ def train(
             loss_train += loss.item()
 
             # Keep track of performance
-            _, batch_n_correct, n_preds = compute_performance(outputs, labels, device)
-            total_predictions_train += n_preds
-            n_correct_train += batch_n_correct
+            if task == "localization":
+                _, batch_n_correct, n_preds = compute_performance(outputs, labels, device)
+                total_predictions_train += n_preds
+                n_correct_train += batch_n_correct
+            elif task == "detection":
+                preds = outputs.permute(0, 2, 3, 1).flatten(1, 2) # Reshape to (batch_size, n_channels, n_cells)
+                targets = labels.permute(0, 2, 3, 1).flatten(1, 2)
+                pass
+                # outputs_dict = [dict() for img in outputs]
+                # labels_dict = [{}]
+                # metric.update(outputs_dict, labels_dict)
 
         losses_train.append(loss_train / n_batch_train)
-        performance_train.append(n_correct_train / total_predictions_train)
+        if task == "localization":
+            performance_train.append(n_correct_train / total_predictions_train)
+        else: 
+            performance_train.append(metric.compute()["map"])
 
         model.eval()
         with torch.no_grad():
@@ -184,6 +209,7 @@ def train(
 
 
 def train_models(
+    task: str,
     networks: list[nn.Module],
     hyper_parameters: dict,
     batch_size: int,
@@ -207,7 +233,8 @@ def train_models(
     device: device to train on
     seed: seed for randomization
     """
-    loss_fn = localization_loss  # using our implemented loss function
+    if task == "localization":
+        loss_fn = localization_loss  # using our implemented loss function
 
     print("\tGlobal parameters:")
     print(f"Batch size: {batch_size}")
@@ -234,9 +261,9 @@ def train_models(
             # as parameters.
             optimizer = optim.SGD(model.parameters(), **hparam)
 
-            print("Starting training using above parameters:\n")
+            print(f"Starting training for {task} using above parameters:\n")
             train_loss, val_loss, train_performance, val_performance = train(
-                n_epochs, optimizer, model, loss_fn, train_loader, val_loader, device
+                task, n_epochs, optimizer, model, loss_fn, train_loader, val_loader, device
             )
 
             models.append(model)
@@ -273,7 +300,7 @@ def select_best_model(
     return selected_model, selected_idx
 
 
-def evaluate_performance(model: nn.Module, loader: DataLoader, device: torch.device):
+def evaluate_performance(task: str, model: nn.Module, loader: DataLoader, device: torch.device):
     """
     Evaluate the performance of a model.
     """
