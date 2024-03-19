@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 from torchmetrics.detection import MeanAveragePrecision
 from datetime import datetime
 import time
-from object_detection import convert_to_dicts
+from .object_detection import MAP_preprocess
 
 
 def time_function(func):
@@ -200,10 +200,10 @@ def train(
                 total_predictions_train += n_preds
                 n_correct_train += batch_n_correct
             elif task == "detection":
-                outputs_reshaped = outputs.permute(0, 2, 3, 1).flatten(1, 2).view(1, 2, 3, 6)
-                labels_reshaped = labels.permute(0, 2, 3, 1).flatten(1, 2).view(1, 2, 3, 6)
-                preds = convert_to_dicts(outputs_reshaped)
-                targets = convert_to_dicts(labels_reshaped)
+                outputs_reshaped = outputs.permute(0, 2, 3, 1)
+                labels_reshaped = labels.permute(0, 2, 3, 1)
+                preds = MAP_preprocess(outputs_reshaped)
+                targets = MAP_preprocess(labels_reshaped)
                 train_metric.update(preds, targets)
 
         losses_train.append(loss_train / n_batch_train)
@@ -221,20 +221,23 @@ def train(
                 outputs = model(imgs)
                 loss = loss_fn(outputs, labels)
                 loss_val += loss.item()
-            if task == "localization":             
-                _, batch_n_correct, n_preds = compute_performance(
-                    outputs, labels, device
-                )
-                total_predictions_val += n_preds
-                n_correct_val += batch_n_correct
-            elif task == "detection":
-                outputs_reshaped = outputs.permute(0, 2, 3, 1).flatten(1, 2).view(1, 2, 3, 6)
-                labels_reshaped = labels.permute(0, 2, 3, 1).flatten(1, 2).view(1, 2, 3, 6)
-                preds = convert_to_dicts(outputs_reshaped)
-                targets = convert_to_dicts(labels_reshaped)
-                val_metric.update(preds, targets)
+                if task == "localization":             
+                    _, batch_n_correct, n_preds = compute_performance(
+                        outputs, labels, device
+                    )
+                    total_predictions_val += n_preds
+                    n_correct_val += batch_n_correct
+                elif task == "detection":
+                    outputs_reshaped = outputs.permute(0, 2, 3, 1)
+                    labels_reshaped = labels.permute(0, 2, 3, 1)
+                    preds = MAP_preprocess(outputs_reshaped)
+                    targets = MAP_preprocess(labels_reshaped)
+                    val_metric.update(preds, targets)
+
+            # Computes mean loss over batches
             losses_val.append(loss_val / n_batch_val)
-            if task == "localization":             
+
+            if task == "localization":          
                 performance_val.append(n_correct_val / total_predictions_val)
             else: 
                 performance_val.append(val_metric.compute()["map"])
@@ -244,10 +247,10 @@ def train(
             print(
                 f"{datetime.now().time()}\n"
                 f"Epoch: {epoch}\n"
-                f"train_loss:         {loss_train/n_batch_train:>10.3f}\n"
-                f"val_loss:           {loss_val/n_batch_val:>10.3f}\n"
-                f"train_performance:  {((n_correct_train / total_predictions_train)*100):>10.3f}%\n"
-                f"val_performance:    {((n_correct_val / total_predictions_val)*100):>10.3f}%\n"
+                f"train_loss:         {losses_train[-1]:>10.3f}\n"
+                f"val_loss:           {losses_val[-1]:>10.3f}\n"
+                f"train_performance:  {((performance_train[-1])*100):>10.3f}%\n"
+                f"val_performance:    {((performance_val[-1])*100):>10.3f}%\n"
             )
 
     return losses_train, losses_val, performance_train, performance_val
@@ -280,7 +283,10 @@ def train_models(
     """
     if task == "localization":
         loss_fn = localization_loss  # using our implemented loss function
-
+    elif task == "detection":
+        loss_fn = detection_loss
+    else: 
+        raise RuntimeError("set task to 'localization' or 'detection'")
     print("\tGlobal parameters:")
     print(f"Batch size: {batch_size}")
     print(f"Epochs: {n_epochs}")

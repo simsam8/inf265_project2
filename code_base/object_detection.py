@@ -76,30 +76,43 @@ def _create_grid_boxes(
     output_box = output_box.permute(2, 0, 1)  # CxHxW
     return output_box
 
-def convert_to_dicts(inputs: torch.Tensor, grid_height, grid_width, threshold: int=0.5):
-    """Prepares data for torchmetrics.MAP calculation. 
-    Box format: cx cy w h"""
-    preds = list()
+def MAP_preprocess(input_tensor: torch.Tensor, threshold: int=0.5):
+    """Preprocesses the label or prediction tensor for torchmetrics.MAP calculation. 
+    Box format: cx cy w h
+    Return: A dictionary of Tensor values as specified in torchmetrics docs. """
+    
+    dict_for_MAP =  []
+    # New dimensions: (batch size, grid height, grid width, channels)
+    input_tensor = input_tensor.permute(0, 2, 3, 1)
 
-    for batch in range(input.shape[0]):
-        image_preds = {
+    # Loop over all images in the batch
+    for batch in range(input_tensor.shape[0]):
+        # Store prediction or target values in a dict
+        img_detect = {
         "boxes": [],
         "scores": [],
         "labels": []
         }
-        for h in range(grid_height):
-            for w in range(grid_width):
-                cell = inputs[batch, h, w]
+        # Extracts data from tensor
+        for h in range(input_tensor.shape[1]):
+            for w in range(input_tensor.shape[2]):
+                cell = input_tensor[batch, h, w]
+                # P_c: detection confidence
                 P_c = cell[0]
-                if P_c >= inputs:
-                    # Assuming box coordinates are normalized [0, 1] relative to image dimensions
-                    box = cell[1:5]  # x_min, y_min, x_max, y_max
-                    label = cell[5].long()  # Class label
-                    image_preds["boxes"].append(torch.tensor(box.tolist()))
-                    image_preds["scores"].append(torch.tensor(P_c.item()))
-                    image_preds["labels"].append(torch.tensor(label.item()))
+                if P_c >= threshold:
+                    box = cell[1:5] 
+                    label = cell[5].long()
+                    img_detect["boxes"].append(box.tolist())
+                    img_detect["scores"].append(P_c.item())
+                    img_detect["labels"].append(label.item())
 
-        preds.append(image_preds)
+        # Converts all dict values to Tensors and stores image detection data in dict
+        img_detect["boxes"] = torch.tensor(img_detect["boxes"])
+        img_detect["scores"] = torch.tensor(img_detect["scores"])
+        img_detect["labels"] = torch.tensor(img_detect["labels"])
+        dict_for_MAP.append(img_detect)
+
+    return dict_for_MAP
 
 
 def get_converted_data(
