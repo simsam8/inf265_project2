@@ -27,6 +27,39 @@ def localization_loss(y_pred: torch.Tensor, y_true: torch.Tensor):
     return loss
 
 
+def _grid_cell_loss(y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
+    """
+    Intermediate function to calculate the loss sum of grid cells.
+    """
+    detection_loss = F.binary_cross_entropy_with_logits(y_pred[:, 0], y_true[:, 0])
+    bbox_loss = F.mse_loss(y_pred[:, 1:5], y_true[:, 1:5])
+    classification_loss = F.binary_cross_entropy_with_logits(
+        y_pred[:, 5], y_true[:, 5].to(torch.long)
+    )
+
+    loss = torch.sum(
+        torch.where(
+            y_true[:, 0] == 0,
+            detection_loss,
+            detection_loss + bbox_loss + classification_loss,
+        ),
+        dim=0,
+    )
+    return loss
+
+
+def detection_loss(y_pred: torch.Tensor, y_true: torch.Tensor):
+    """
+    Calculate the detection loss
+    """
+    y_true = y_true.permute(0, 2, 3, 1).flatten(1, 2)
+    y_pred = y_pred.permute(0, 2, 3, 1).flatten(1, 2)
+
+    vectorized_grid_cell_loss = torch.vmap(_grid_cell_loss)
+    loss = torch.mean(vectorized_grid_cell_loss(y_pred, y_true))
+    return loss
+
+
 def compute_performance(
     y_pred: torch.Tensor, y_true: torch.Tensor, device: torch.device
 ):
