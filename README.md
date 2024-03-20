@@ -1,4 +1,4 @@
-# INF265 Project 1: Object Detection
+# INF265 Project 2: Object Detection
 
 This repository contains the code, documentation and report for a deep learning project completed as part of the course INF265: Deep Learning at the University of Bergen. 
 The project assignment was completed as a collaboration between [Simon Vedaa](https://github.com/simsam8) and [Sebastian Røkholt](https://github.com/SebastianRokholt). It was handed in on the 22nd of March 2024. 
