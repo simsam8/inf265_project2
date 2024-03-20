@@ -1,8 +1,10 @@
 import matplotlib.pyplot as plt
 import torch
+from torch.nn.functional import sigmoid
 from torchvision.utils import draw_bounding_boxes
 from torchvision.ops import box_convert
 from torchvision.transforms.functional import convert_image_dtype
+from .object_detection import _local_to_global
 
 
 class DataAnalysis:
@@ -158,4 +160,95 @@ class DataAnalysis:
 
         if save_to_file is not None:
             fig.savefig(save_to_file, bbox_inches="tight")
+        plt.show()
+
+    @staticmethod
+    def plot_detection_instances(
+        dataset,
+        nxm_instances: tuple[int, int],
+        predictions=None,
+        grid_dimensions=(2, 3),
+        save_to_file=None,
+        title="title",
+    ):
+        fig, axes = plt.subplots(
+            nrows=nxm_instances[0], ncols=nxm_instances[1], figsize=(10, 8)
+        )
+
+        n_instances = nxm_instances[0] * nxm_instances[1]
+        imgs = []
+        bboxes_true = []
+        bboxes_pred = []
+        true_labels = []
+        pred_labels = []
+        for i, (img, label) in enumerate(dataset):
+            label = label.permute(1, 2, 0)
+            label = torch.flatten(label, 0, 1)
+            if len(imgs) == n_instances:
+                break
+
+            imgs.append(img.clone())
+            bbox_classes = [str(int(bbox[-1])) for bbox in label if bbox[0] != 0]
+            true_labels.append(bbox_classes)
+            label = [
+                _local_to_global(bbox, grid_dimensions, i)
+                for (i, bbox) in enumerate(label)
+            ]
+            label = [bbox[1:5].clone() for bbox in label if bbox[0] != 0]
+            bboxes_true.append(label)
+
+            if predictions is not None:
+                pred_label = predictions[i].permute(1, 2, 0)
+                pred_label = torch.flatten(pred_label, 0, 1)
+                predicted_classes = [
+                    str(int(sigmoid(bbox[-1]))) for bbox in pred_label if bbox[0] > 0
+                ]
+                pred_labels.append(predicted_classes)
+                pred_label = [
+                    _local_to_global(bbox, grid_dimensions, i)
+                    for (i, bbox) in enumerate(pred_label)
+                    if bbox[0] > 0
+                ]
+                pred_label = [bbox[1:5].clone() for bbox in pred_label if bbox[0] > 0]
+
+                bboxes_pred.append(pred_label)
+
+        for i, ax in enumerate(axes.flat):
+            img_out = imgs[i]
+            for bbox in bboxes_true[i]:
+                bbox[0::2] *= img_out.shape[2]
+                bbox[1::2] *= img_out.shape[1]
+
+            boxes = torch.stack(bboxes_true[i])
+            boxes = box_convert(boxes, "cxcywh", "xyxy")
+
+            img_out = draw_bounding_boxes(
+                convert_image_dtype(img_out, torch.uint8),
+                boxes,
+                labels=true_labels[i],
+                colors="green",
+            )
+
+            if predictions is not None:
+                for bbox in bboxes_pred[i]:
+                    bbox[0::2] *= img_out.shape[2]
+                    bbox[1::2] *= img_out.shape[1]
+
+                # Plot bbox if object is predicted
+                if bboxes_pred[i]:
+
+                    pred_boxes = torch.stack(bboxes_pred[i])
+                    pred_boxes = torch.clamp_min(pred_boxes, 0)
+                    pred_boxes = box_convert(pred_boxes, "cxcywh", "xyxy")
+                    img_out = draw_bounding_boxes(
+                        img_out, pred_boxes, labels=pred_labels[i], colors="red"
+                    )
+
+            ax.imshow(img_out.permute(1, 2, 0))
+            ax.axis("off")
+        fig.suptitle(title)
+
+        if save_to_file is not None:
+            fig.savefig(save_to_file, bbox_inches="tight")
+
         plt.show()
