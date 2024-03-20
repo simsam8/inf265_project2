@@ -7,10 +7,11 @@ numbersections: true
 ---
 
 # Introduction
+This report aims to explain our approach and design choices for defining, training and evaluating CNNs for the tasks of object localization and object detection. Additionally, we will discuss the performance of our models and evaluate our implementations.
+
+For general information and setup guidance, please refer to the [README](README.md).
 
 ## Contributions
-
-
 - **Simon Vedaa**:
 - **Sebastion Røkholt**:
 
@@ -18,6 +19,10 @@ numbersections: true
 
 
 ## Object localization
+**Task**: Train a CNN that can predict
+ - Whether there is a single handwritten digit in a black and white image (0 = no, 1 = yes)
+ - The bounding box of this digit (x-coordinate, y-coordinate, height and width)
+ - Which digit it is (out of two possibilities: 0 or 1)
 
 ### Loss function
 
@@ -47,6 +52,14 @@ TODO
 
 ## Object detection
 
+**Task**: Train a CNN that can predict
+ - Whether there are any handwritten digits in a black and white image (0 = no, 1 = yes)
+ - The bounding box of each digit (x-coordinate, y-coordinate, height and width)
+ - Which digits have been detected (out of two possibilities: 0 or 1)
+
+### Detection grid
+TODO
+
 ### Loss function
 
 The loss function for object detection is similar to localization.
@@ -72,8 +85,13 @@ architectures and hyperparameters.
 
 
 
-## Model selection and evaluation
+## Model selection
+TODO
 
+- Grid search over hyperparameters
+- Best model
 
-
-- Models and hyperparameters
+## Evaluation
+- Evaluation of the best model
+- What worked well, what didn't. Challenges. Overall process
+- Further improvements that could be made
