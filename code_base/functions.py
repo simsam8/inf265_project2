@@ -190,7 +190,26 @@ def train(
     train_loader: DataLoader,
     val_loader: DataLoader,
     device: torch.device,
-):
+) -> dict[str, list[float]]:
+    """
+    Trains a given model with optimizer. Keeps track of training and
+    validation performance and loss.
+
+    Returns a dictionary containing lists of training and validation
+    loss and performance. The lists contains values for each epoch.
+
+    keys:
+    - loss_train
+    - loss_val
+    - detection_train
+    - detection_val
+    - box_train
+    - box_val
+    - mean_perf_train
+    - mean_perf_val
+    - strict_train
+    - strict_val
+    """
 
     n_batch_train = len(train_loader)
     n_batch_val = len(val_loader)
@@ -332,14 +351,19 @@ def train(
                     Strict accuracy: {((strict_performance_val[-1])*100):>10.3f}%\n\n\n"
             )
 
-    return (
-        losses_train,
-        losses_val,
-        detection_performance_train,
-        detection_performance_val,
-        box_performance_train,
-        box_performance_val,
-    )
+    training_result = {
+        "loss_train": losses_train,
+        "loss_val": losses_val,
+        "detection_train": detection_performance_train,
+        "detection_val": detection_performance_val,
+        "box_train": box_performance_train,
+        "box_val": box_performance_val,
+        "mean_perf_train": mean_performance_train,
+        "mean_perf_val": mean_performance_val,
+        "strict_train": strict_performance_train,
+        "strict_val": strict_performance_val,
+    }
+    return training_result
 
 
 def train_models(
@@ -352,7 +376,7 @@ def train_models(
     val_loader: DataLoader,
     device: torch.device,
     seed: int,
-):
+) -> dict[str, list[nn.Module | float]]:
     """
     Trains and returns models with different hyper parameters and
     model architectures.
@@ -378,11 +402,19 @@ def train_models(
     print(f"Epochs: {n_epochs}")
     print(f"Seed: {seed}")
 
-    models = []
-    train_performances = []
-    val_performances = []
-    train_losses = []
-    val_losses = []
+    grid_search_result = {
+        "models": [],
+        "loss_train": [],
+        "loss_val": [],
+        "detection_train": [],
+        "detection_val": [],
+        "box_train": [],
+        "box_val": [],
+        "mean_perf_train": [],
+        "mean_perf_val": [],
+        "strict_train": [],
+        "strict_val": [],
+    }
 
     # Hyperparameter testing on each defined model architecture
     for network in networks:
@@ -399,7 +431,7 @@ def train_models(
             optimizer = optim.SGD(model.parameters(), **hparam)
 
             print(f"Starting training for {task} using above parameters:\n")
-            train_loss, val_loss, train_performance, val_performance = train(
+            train_results = train(
                 task,
                 n_epochs,
                 optimizer,
@@ -410,17 +442,27 @@ def train_models(
                 device,
             )
 
-            models.append(model)
-            train_performances.append(train_performance)
-            val_performances.append(val_performance)
-            train_losses.append(train_loss)
-            val_losses.append(val_loss)
+            grid_search_result["models"].append(model)
+            grid_search_result["loss_train"].append(train_results["loss_train"])
+            grid_search_result["loss_val"].append(train_results["loss_val"])
+            grid_search_result["detection_train"].append(
+                train_results["detection_train"]
+            )
+            grid_search_result["detection_val"].append(train_results["detection_val"])
+            grid_search_result["box_train"].append(train_results["box_train"])
+            grid_search_result["box_val"].append(train_results["box_val"])
+            grid_search_result["mean_perf_train"].append(
+                train_results["mean_perf_train"]
+            )
+            grid_search_result["mean_perf_val"].append(train_results["mean_perf_val"])
+            grid_search_result["strict_train"].append(train_results["strict_train"])
+            grid_search_result["strict_val"].append(train_results["strict_val"])
 
-            print("\n", "-" * 3, "Performance", "-" * 3)
-            print(f"Training performance: {train_performance[-1]*100:.2f}%")
-            print(f"Validation performance: {val_performance[-1]*100:.2f}%")
+            # print("\n", "-" * 3, "Performance", "-" * 3)
+            # print(f"Training performance: {train_performance[-1]*100:.2f}%")
+            # print(f"Validation performance: {val_performance[-1]*100:.2f}%")
 
-    return models, train_performances, val_performances, train_losses, val_losses
+    return grid_search_result
 
 
 def select_best_model(
@@ -466,9 +508,7 @@ def evaluate_performance(
             outputs = model(imgs)
             model_outputs.append(outputs)
             if task == "localization":
-                _, batch_n_correct, n_preds = compute_performance(
-                    outputs, labels, device
-                )
+                _, batch_n_correct, n_preds = compute_performance(outputs, labels)
                 total_predictions += n_preds
                 n_correct += batch_n_correct
             elif task == "detection":
