@@ -52,6 +52,14 @@ TODO
 
 ## Object detection
 
+**Task**: Train a CNN that can predict
+ - Whether there are any handwritten digits in a black and white image (0 = no, 1 = yes)
+ - The bounding box of each digit (x-coordinate, y-coordinate, height and width)
+ - Which digits have been detected (out of two possibilities: 0 or 1)
+
+### Detection grid
+TODO
+
 ### Loss function
 
 The loss function for object detection is similar to localization.
@@ -77,8 +85,13 @@ architectures and hyperparameters.
 
 
 
-## Model selection and evaluation
+## Model selection
+TODO
 
+- Grid search over hyperparameters
+- Best model
 
-
-- Models and hyperparameters
+## Evaluation
+- Evaluation of the best model
+- What worked well, what didn't. Challenges. Overall process
+- Further improvements that could be made
