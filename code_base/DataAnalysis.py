@@ -44,18 +44,34 @@ class DataAnalysis:
 
     @staticmethod
     def plot_performance_over_time(
-        train_loss, val_loss, title, label1="Train Loss", label2="Val Loss"
+        train_loss,
+        val_loss,
+        title,
+        y_label,
+        label1="Train",
+        label2="Val",
+        save_to_file=None,
     ):
-        _, ax = plt.subplots()
+        fig, ax = plt.subplots()
         ax.set_title(title)
         ax.plot(train_loss, label=label1)
         ax.plot(val_loss, label=label2)
         ax.legend()
+
+        plt.ylabel(y_label)
+        plt.xlabel("Epochs")
+
+        if save_to_file is not None:
+            fig.savefig(save_to_file, bbox_inches="tight")
         plt.show()
 
     @staticmethod
     def plot_instances_with_bounding_box(
-        dataset, class_n=None, n_instances=4, predictions=None
+        dataset,
+        class_n=None,
+        n_instances=4,
+        predictions=None,
+        save_to_file=None,
     ):
         """
         Plot instances and their bounding box from the given dataset.
@@ -139,4 +155,7 @@ class DataAnalysis:
             ax.imshow(img_out.permute(1, 2, 0))
             ax.axis("off")
         fig.suptitle(f"Label: {class_n}", y=0.7)
+
+        if save_to_file is not None:
+            fig.savefig(save_to_file, bbox_inches="tight")
         plt.show()
