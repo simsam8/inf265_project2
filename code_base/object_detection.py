@@ -40,7 +40,9 @@ def _global_to_local(
     return row_index, col_index, local_tensor
 
 
-def _local_to_global(in_tensor: torch.Tensor, grid_dimensions: tuple[int, int], pos):
+def _local_to_global(
+    in_tensor: torch.Tensor, grid_dimensions: tuple[int, int], pos
+) -> torch.Tensor:
     x_local, y_local, w_local, h_local = in_tensor[1:5]
     rows, cols = grid_dimensions
     cell_w = 1 / cols

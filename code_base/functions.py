@@ -265,7 +265,6 @@ def train(
             # Keep track of performance
             if task == "localization":
                 results = compute_performance(outputs, labels)
-                # print(f"Results for batch {i}: \n{results}")
                 train_total_predictions += results["n_predictions"]
                 train_total_detection_correct += results["detection_correct"]
                 train_total_box_correct += results["box_correct"]
@@ -436,9 +435,7 @@ def train_models(
 
             model = network()
             model.to(device)
-            # TODO?: Using only SGD at the moment, could possibly add optimizers
-            # as parameters.
-            optimizer = optim.SGD(model.parameters(), **hparam)
+            optimizer = optim.Adam(model.parameters(), **hparam)
 
             print(f"Starting training for {task} using above parameters:\n")
             train_results = train(
@@ -487,8 +484,6 @@ def select_best_model(
 
     return: selected_model, index of model
     """
-    # TODO?: Might change the input list of val performance from list of lists
-    # to only the final performance value
     last_val_performances = [val_perf[-1] for val_perf in val_performances]
     selected_idx = last_val_performances.index(max(last_val_performances))
     selected_model = models[selected_idx]

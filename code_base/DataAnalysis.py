@@ -10,7 +10,10 @@ from .object_detection import _local_to_global
 class DataAnalysis:
 
     @staticmethod
-    def get_summary(dataset):
+    def get_summary(dataset: torch.Tensor) -> None:
+        """
+        Display a summary of the given dataset
+        """
         # Convert data to PyTorch Tensors
         imgs = torch.stack([img for img, _ in dataset])
         labels = torch.stack([label for _, label in dataset])
@@ -46,14 +49,14 @@ class DataAnalysis:
 
     @staticmethod
     def plot_performance_over_time(
-        train_loss,
-        val_loss,
-        title,
-        y_label,
-        label1="Train",
-        label2="Val",
-        save_to_file=None,
-    ):
+        train_loss: list[float],
+        val_loss: list[float],
+        title: str,
+        y_label: str,
+        label1: str = "Train",
+        label2: str = "Val",
+        save_to_file: str | None = None,
+    ) -> None:
         fig, ax = plt.subplots()
         ax.set_title(title)
         ax.plot(train_loss, label=label1)
@@ -69,12 +72,12 @@ class DataAnalysis:
 
     @staticmethod
     def plot_instances_with_bounding_box(
-        dataset,
-        class_n=None,
-        n_instances=4,
-        predictions=None,
-        save_to_file=None,
-    ):
+        dataset: torch.Tensor,
+        class_n: int | None = None,
+        n_instances: int = 4,
+        predictions: torch.Tensor | None = None,
+        save_to_file: str | None = None,
+    ) -> None:
         """
         Plot instances and their bounding box from the given dataset.
         Optionally plot the bounding box of predictions.
@@ -164,13 +167,17 @@ class DataAnalysis:
 
     @staticmethod
     def plot_detection_instances(
-        dataset,
+        dataset: torch.Tensor,
         nxm_instances: tuple[int, int],
-        predictions=None,
-        grid_dimensions=(2, 3),
-        save_to_file=None,
-        title="title",
-    ):
+        predictions: torch.Tensor | None = None,
+        grid_dimensions: tuple[int, int] = (2, 3),
+        save_to_file: str | None = None,
+        title: str = "title",
+    ) -> None:
+        """
+        Plots instances of the object detection dataset with bounding boxes.
+        Optionally with predctions.
+        """
         fig, axes = plt.subplots(
             nrows=nxm_instances[0], ncols=nxm_instances[1], figsize=(10, 8)
         )
