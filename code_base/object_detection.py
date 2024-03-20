@@ -83,7 +83,6 @@ def MAP_preprocess(input_tensor: torch.Tensor, threshold: int=0.5):
     # New dimensions: (batch size, grid height, grid width, channels)
     input_tensor = input_tensor.permute(0, 2, 3, 1)
     grid_dimensions = (input_tensor.shape[1], input_tensor.shape[2])
-    print(grid_dimensions)
     # Loop over all images in the batch
     for batch in range(input_tensor.shape[0]):
         # Store prediction or target values in a dict
