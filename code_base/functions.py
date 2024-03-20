@@ -20,7 +20,7 @@ def time_function(func):
     return wrapper
 
 
-def localization_loss(y_pred: torch.Tensor, y_true: torch.Tensor):
+def localization_loss(y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
     """
     Calculates the localization loss.
     If there is no object (y_true[0] == 0), then only detection loss is calculated.
@@ -62,7 +62,7 @@ def _grid_cell_loss(y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
     return loss
 
 
-def detection_loss(y_pred: torch.Tensor, y_true: torch.Tensor):
+def detection_loss(y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
     """
     Calculate the detection loss
     """
@@ -76,7 +76,7 @@ def detection_loss(y_pred: torch.Tensor, y_true: torch.Tensor):
 
 def compute_performance(
     y_pred: torch.Tensor, y_true: torch.Tensor, iou_threshold: float = 0.5
-):
+) -> dict:
     """
     Computes the accuracy of predictions.
     When the Pc of y_true is 0, no object is present,
@@ -190,7 +190,26 @@ def train(
     train_loader: DataLoader,
     val_loader: DataLoader,
     device: torch.device,
-):
+) -> dict[str, list[float]]:
+    """
+    Trains a given model with optimizer. Keeps track of training and
+    validation performance and loss.
+
+    Returns a dictionary containing lists of training and validation
+    loss and performance. The lists contains values for each epoch.
+
+    keys:
+    - loss_train
+    - loss_val
+    - detection_train
+    - detection_val
+    - box_train
+    - box_val
+    - mean_perf_train
+    - mean_perf_val
+    - strict_train
+    - strict_val
+    """
 
     n_batch_train = len(train_loader)
     n_batch_val = len(val_loader)
@@ -246,7 +265,6 @@ def train(
             # Keep track of performance
             if task == "localization":
                 results = compute_performance(outputs, labels)
-                # print(f"Results for batch {i}: \n{results}")
                 train_total_predictions += results["n_predictions"]
                 train_total_detection_correct += results["detection_correct"]
                 train_total_box_correct += results["box_correct"]
@@ -285,18 +303,18 @@ def train(
                 loss = loss_fn(outputs, labels)
                 loss_val += loss.item()
                 # Keep track of performance
-            if task == "localization":
-                results = compute_performance(outputs, labels)
-                val_total_detection_correct += results["detection_correct"]
-                val_total_box_correct += results["box_correct"]
-                val_total_predictions += results["n_predictions"]
-                val_total_box_preds += results["total_box_predictions"]
-                val_total_strict_correct += results["strict_correct"]
+                if task == "localization":
+                    results = compute_performance(outputs, labels)
+                    val_total_detection_correct += results["detection_correct"]
+                    val_total_box_correct += results["box_correct"]
+                    val_total_predictions += results["n_predictions"]
+                    val_total_box_preds += results["total_box_predictions"]
+                    val_total_strict_correct += results["strict_correct"]
 
-            elif task == "detection":
-                outputs_prep = MAP_preprocess(outputs)
-                labels_prep = MAP_preprocess(labels)
-                val_metric.update(outputs_prep, labels_prep)
+                elif task == "detection":
+                    outputs_prep = MAP_preprocess(outputs)
+                    labels_prep = MAP_preprocess(labels)
+                    val_metric.update(outputs_prep, labels_prep)
 
         losses_val.append(loss_val / n_batch_val)
         if task == "localization":
@@ -310,36 +328,51 @@ def train(
             strict_performance_val.append(
                 val_total_strict_correct / val_total_predictions
             )
-        else:
+        elif task == "detection":
             map_metrics = val_metric.compute()
             strict_performance_val.append(map_metrics["map"])
 
         if epoch == 1 or epoch % 5 == 0:
-            print(
-                f"{datetime.now().time()}\n"
-                f"Epoch: {epoch}\n"
-                f"train_loss:         {losses_train[-1]:>10.3f}\n"
-                f"val_loss:           {losses_val[-1]:>10.3f}\n"
-                f"train_performance:  \n\n    \
-                    Box accuracy: {((box_performance_train[-1])*100):>10.3f}% \
-                    Detection accuracy: {((detection_performance_train[-1])*100):>10.3f}% \n\
-                    Mean accuracy: {((mean_performance_train[-1])*100):>10.3f}% \
-                    Strict accuracy: {((strict_performance_train[-1])*100):>10.3f}%\n\n"
-                f"val_performance:    \n    \
-                    Box accuracy: {((box_performance_val[-1])*100):>10.3f}% \
-                    Detection accuracy: {((detection_performance_val[-1])*100):>10.3f}% \n\
-                    Mean accuracy: {((mean_performance_val[-1])*100):>10.3f}% \
-                    Strict accuracy: {((strict_performance_val[-1])*100):>10.3f}%\n\n\n"
-            )
+            if task == "localization":
+                print(
+                    f"{datetime.now().time()}\n"
+                    f"Epoch: {epoch}\n"
+                    f"train_loss:         {losses_train[-1]:>10.3f}\n"
+                    f"val_loss:           {losses_val[-1]:>10.3f}\n"
+                    f"train_performance:  \n\n    \
+                        Box accuracy: {((box_performance_train[-1])*100):>10.3f}% \
+                        Detection accuracy: {((detection_performance_train[-1])*100):>10.3f}% \n\
+                        Mean accuracy: {((mean_performance_train[-1])*100):>10.3f}% \
+                        Strict accuracy: {((strict_performance_train[-1])*100):>10.3f}%\n\n"
+                    f"val_performance:    \n    \
+                        Box accuracy: {((box_performance_val[-1])*100):>10.3f}% \
+                        Detection accuracy: {((detection_performance_val[-1])*100):>10.3f}% \n\
+                        Mean accuracy: {((mean_performance_val[-1])*100):>10.3f}% \
+                        Strict accuracy: {((strict_performance_val[-1])*100):>10.3f}%\n\n\n"
+                )
+            elif task == "detection":
+                print(
+                    f"{datetime.now().time()}\n"
+                    f"Epoch: {epoch}\n"
+                    f"train_loss:         {losses_train[-1]:>10.3f}\n"
+                    f"val_loss:           {losses_val[-1]:>10.3f}\n"
+                    f"train_performance:\nStrict accuracy: {((strict_performance_train[-1])*100):>10.3f}%\n\n"
+                    f"val_performance:\nStrict accuracy: {((strict_performance_val[-1])*100):>10.3f}%\n\n\n"
+                )
 
-    return (
-        losses_train,
-        losses_val,
-        detection_performance_train,
-        detection_performance_val,
-        box_performance_train,
-        box_performance_val,
-    )
+    training_result = {
+        "loss_train": losses_train,
+        "loss_val": losses_val,
+        "detection_train": detection_performance_train,
+        "detection_val": detection_performance_val,
+        "box_train": box_performance_train,
+        "box_val": box_performance_val,
+        "mean_perf_train": mean_performance_train,
+        "mean_perf_val": mean_performance_val,
+        "strict_train": strict_performance_train,
+        "strict_val": strict_performance_val,
+    }
+    return training_result
 
 
 def train_models(
@@ -352,7 +385,7 @@ def train_models(
     val_loader: DataLoader,
     device: torch.device,
     seed: int,
-):
+) -> dict[str, list[nn.Module | float]]:
     """
     Trains and returns models with different hyper parameters and
     model architectures.
@@ -378,11 +411,19 @@ def train_models(
     print(f"Epochs: {n_epochs}")
     print(f"Seed: {seed}")
 
-    models = []
-    train_performances = []
-    val_performances = []
-    train_losses = []
-    val_losses = []
+    grid_search_result = {
+        "models": [],
+        "loss_train": [],
+        "loss_val": [],
+        "detection_train": [],
+        "detection_val": [],
+        "box_train": [],
+        "box_val": [],
+        "mean_perf_train": [],
+        "mean_perf_val": [],
+        "strict_train": [],
+        "strict_val": [],
+    }
 
     # Hyperparameter testing on each defined model architecture
     for network in networks:
@@ -394,12 +435,10 @@ def train_models(
 
             model = network()
             model.to(device)
-            # TODO?: Using only SGD at the moment, could possibly add optimizers
-            # as parameters.
-            optimizer = optim.SGD(model.parameters(), **hparam)
+            optimizer = optim.Adam(model.parameters(), **hparam)
 
             print(f"Starting training for {task} using above parameters:\n")
-            train_loss, val_loss, train_performance, val_performance = train(
+            train_results = train(
                 task,
                 n_epochs,
                 optimizer,
@@ -410,17 +449,27 @@ def train_models(
                 device,
             )
 
-            models.append(model)
-            train_performances.append(train_performance)
-            val_performances.append(val_performance)
-            train_losses.append(train_loss)
-            val_losses.append(val_loss)
+            grid_search_result["models"].append(model)
+            grid_search_result["loss_train"].append(train_results["loss_train"])
+            grid_search_result["loss_val"].append(train_results["loss_val"])
+            grid_search_result["detection_train"].append(
+                train_results["detection_train"]
+            )
+            grid_search_result["detection_val"].append(train_results["detection_val"])
+            grid_search_result["box_train"].append(train_results["box_train"])
+            grid_search_result["box_val"].append(train_results["box_val"])
+            grid_search_result["mean_perf_train"].append(
+                train_results["mean_perf_train"]
+            )
+            grid_search_result["mean_perf_val"].append(train_results["mean_perf_val"])
+            grid_search_result["strict_train"].append(train_results["strict_train"])
+            grid_search_result["strict_val"].append(train_results["strict_val"])
 
-            print("\n", "-" * 3, "Performance", "-" * 3)
-            print(f"Training performance: {train_performance[-1]*100:.2f}%")
-            print(f"Validation performance: {val_performance[-1]*100:.2f}%")
+            # print("\n", "-" * 3, "Performance", "-" * 3)
+            # print(f"Training performance: {train_performance[-1]*100:.2f}%")
+            # print(f"Validation performance: {val_performance[-1]*100:.2f}%")
 
-    return models, train_performances, val_performances, train_losses, val_losses
+    return grid_search_result
 
 
 def select_best_model(
@@ -435,8 +484,6 @@ def select_best_model(
 
     return: selected_model, index of model
     """
-    # TODO?: Might change the input list of val performance from list of lists
-    # to only the final performance value
     last_val_performances = [val_perf[-1] for val_perf in val_performances]
     selected_idx = last_val_performances.index(max(last_val_performances))
     selected_model = models[selected_idx]
@@ -446,17 +493,25 @@ def select_best_model(
 
 def evaluate_performance(
     task: str, model: nn.Module, loader: DataLoader, device: torch.device
-):
+) -> tuple[dict[str, float | int], torch.Tensor]:
     """
     Evaluate the performance of a model.
     """
+    strict_performance = 0
+    mean_performance = 0
+    detection_performance = 0
+    box_performance = 0
+    model_outputs = []
+
     if task == "localization":
+        total_strict_correct = 0
+        total_box_correct = 0
+        total_box_preds = 0
         total_predictions = 0
-        n_correct = 0
+        total_detection_correct = 0
     elif task == "detection":
         metric = MeanAveragePrecision(box_format="cxcywh", iou_type="bbox")
-    performance = []
-    model_outputs = []
+
     model.eval()
     with torch.no_grad():
         for imgs, labels in loader:
@@ -466,20 +521,31 @@ def evaluate_performance(
             outputs = model(imgs)
             model_outputs.append(outputs)
             if task == "localization":
-                _, batch_n_correct, n_preds = compute_performance(
-                    outputs, labels, device
-                )
-                total_predictions += n_preds
-                n_correct += batch_n_correct
+                results = compute_performance(outputs, labels)
+                total_predictions += results["n_predictions"]
+                total_detection_correct += results["detection_correct"]
+                total_box_correct += results["box_correct"]
+                total_box_preds += results["total_box_predictions"]
+                total_strict_correct += results["strict_correct"]
             elif task == "detection":
                 outputs_prep = MAP_preprocess(outputs)
                 labels_prep = MAP_preprocess(labels)
                 metric.update(outputs_prep, labels_prep)
 
         if task == "localization":
-            performance.append(n_correct / total_predictions)
+            box_performance = total_box_correct / total_box_preds
+            detection_performance = total_detection_correct / total_predictions
+            strict_performance = total_strict_correct / total_predictions
+            mean_performance = (detection_performance + box_performance) / 2
         elif task == "detection":
-            performance.append(metric.compute()["map"])
+            strict_performance = metric.compute()["map"]
 
     model_output = torch.concat(model_outputs)
-    return performance, model_output
+
+    evaluation_result = {
+        "box": box_performance,
+        "detection": detection_performance,
+        "strict": strict_performance,
+        "mean": mean_performance,
+    }
+    return evaluation_result, model_output

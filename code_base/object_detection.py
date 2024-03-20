@@ -1,10 +1,6 @@
 import torch
 import torch.nn.functional as F
 from torch.utils.data import TensorDataset
-import matplotlib.pyplot as plt
-from torchvision.ops import box_convert
-from torchvision.transforms.functional import convert_image_dtype
-from torchvision.utils import draw_bounding_boxes
 
 
 def _global_to_local(
@@ -44,7 +40,9 @@ def _global_to_local(
     return row_index, col_index, local_tensor
 
 
-def _local_to_global(in_tensor: torch.Tensor, grid_dimensions: tuple[int, int], pos):
+def _local_to_global(
+    in_tensor: torch.Tensor, grid_dimensions: tuple[int, int], pos: int
+) -> torch.Tensor:
     x_local, y_local, w_local, h_local = in_tensor[1:5]
     rows, cols = grid_dimensions
     cell_w = 1 / cols
@@ -77,7 +75,7 @@ def _create_grid_boxes(
     return output_box
 
 
-def MAP_preprocess(input_tensor: torch.Tensor, threshold: float = 0.5):
+def MAP_preprocess(input_tensor: torch.Tensor, threshold: float = 0.5) -> list[dict]:
     """Preprocesses the label or prediction tensor for torchmetrics.MAP calculation.
     Box format: cx cy w h
     Return: A dictionary of Tensor values as specified in torchmetrics docs."""
@@ -142,78 +140,3 @@ def get_converted_data(
         output_datasets.append(tensor_data)
 
     return tuple(output_datasets)
-
-
-def plot_instances(dataset, n_instances, predictions=None, grid_dimensions=(2, 3)):
-    fig, axes = plt.subplots(nrows=1, ncols=n_instances, figsize=(10, 8))
-
-    imgs = []
-    bboxes_true = []
-    bboxes_pred = []
-    true_labels = []
-    pred_labels = []
-    for i, (img, label) in enumerate(dataset):
-        label = label.permute(1, 2, 0)
-        label = torch.flatten(label, 0, 1)
-        if len(imgs) == n_instances:
-            break
-
-        imgs.append(img.clone())
-        bbox_classes = [str(int(bbox[-1])) for bbox in label if bbox[0] != 0]
-        true_labels.append(bbox_classes)
-        label = [
-            _local_to_global(bbox, grid_dimensions, i) for (i, bbox) in enumerate(label)
-        ]
-        label = [bbox[1:5].clone() for bbox in label if bbox[0] != 0]
-        bboxes_true.append(label)
-
-        if predictions is not None:
-            pred_label = predictions[i].permute(1, 2, 0)
-            pred_label = torch.flatten(pred_label, 0, 1)
-            predicted_classes = [
-                str(int(F.sigmoid(bbox[-1]))) for bbox in pred_label if bbox[0] > 0
-            ]
-            pred_labels.append(predicted_classes)
-            pred_label = [
-                _local_to_global(bbox, grid_dimensions, i)
-                for (i, bbox) in enumerate(pred_label)
-                if bbox[0] > 0
-            ]
-            pred_label = [bbox[1:5].clone() for bbox in pred_label if bbox[0] > 0]
-
-            bboxes_pred.append(pred_label)
-
-    for i, ax in enumerate(axes.flat):
-        img_out = imgs[i]
-        for bbox in bboxes_true[i]:
-            bbox[0::2] *= img_out.shape[2]
-            bbox[1::2] *= img_out.shape[1]
-
-        boxes = torch.stack(bboxes_true[i])
-        boxes = box_convert(boxes, "cxcywh", "xyxy")
-
-        img_out = draw_bounding_boxes(
-            convert_image_dtype(img_out, torch.uint8),
-            boxes,
-            labels=true_labels[i],
-            colors="green",
-        )
-
-        if predictions is not None:
-            for bbox in bboxes_pred[i]:
-                bbox[0::2] *= img_out.shape[2]
-                bbox[1::2] *= img_out.shape[1]
-
-            # Plot bbox if object is predicted
-            if bboxes_pred[i]:
-
-                pred_boxes = torch.stack(bboxes_pred[i])
-                pred_boxes = torch.clamp_min(pred_boxes, 0)
-                pred_boxes = box_convert(pred_boxes, "cxcywh", "xyxy")
-                img_out = draw_bounding_boxes(
-                    img_out, pred_boxes, labels=pred_labels[i], colors="red"
-                )
-
-        ax.imshow(img_out.permute(1, 2, 0))
-        ax.axis("off")
-    plt.show()
