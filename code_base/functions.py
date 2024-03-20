@@ -363,8 +363,11 @@ def evaluate_performance(
     """
     Evaluate the performance of a model.
     """
-    total_predictions = 0
-    n_correct = 0
+    if task == "localization":
+        total_predictions = 0
+        n_correct = 0
+    elif task == "detection":
+        metric = MeanAveragePrecision(box_format="cxcywh", iou_type="bbox")
     performance = []
     model_outputs = []
     model.eval()
@@ -375,10 +378,21 @@ def evaluate_performance(
 
             outputs = model(imgs)
             model_outputs.append(outputs)
-            _, batch_n_correct, n_preds = compute_performance(outputs, labels, device)
-            total_predictions += n_preds
-            n_correct += batch_n_correct
-        performance = n_correct / total_predictions
+            if task == "localization":
+                _, batch_n_correct, n_preds = compute_performance(
+                    outputs, labels, device
+                )
+                total_predictions += n_preds
+                n_correct += batch_n_correct
+            elif task == "detection":
+                outputs_prep = MAP_preprocess(outputs)
+                labels_prep = MAP_preprocess(labels)
+                metric.update(outputs_prep, labels_prep)
+
+        if task == "localization":
+            performance.append(n_correct / total_predictions)
+        elif task == "detection":
+            performance.append(metric.compute()["map"])
 
     model_output = torch.concat(model_outputs)
     return performance, model_output
