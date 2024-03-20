@@ -20,7 +20,7 @@ def time_function(func):
     return wrapper
 
 
-def localization_loss(y_pred: torch.Tensor, y_true: torch.Tensor):
+def localization_loss(y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
     """
     Calculates the localization loss.
     If there is no object (y_true[0] == 0), then only detection loss is calculated.
@@ -62,7 +62,7 @@ def _grid_cell_loss(y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
     return loss
 
 
-def detection_loss(y_pred: torch.Tensor, y_true: torch.Tensor):
+def detection_loss(y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
     """
     Calculate the detection loss
     """
@@ -76,7 +76,7 @@ def detection_loss(y_pred: torch.Tensor, y_true: torch.Tensor):
 
 def compute_performance(
     y_pred: torch.Tensor, y_true: torch.Tensor, iou_threshold: float = 0.5
-):
+) -> dict:
     """
     Computes the accuracy of predictions.
     When the Pc of y_true is 0, no object is present,
@@ -493,7 +493,7 @@ def select_best_model(
 
 def evaluate_performance(
     task: str, model: nn.Module, loader: DataLoader, device: torch.device
-):
+) -> tuple[dict[str, float | int], torch.Tensor]:
     """
     Evaluate the performance of a model.
     """
@@ -546,6 +546,6 @@ def evaluate_performance(
         "box": box_performance,
         "detection": detection_performance,
         "strict": strict_performance,
-        "mean": mean_performance
+        "mean": mean_performance,
     }
     return evaluation_result, model_output

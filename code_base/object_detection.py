@@ -41,7 +41,7 @@ def _global_to_local(
 
 
 def _local_to_global(
-    in_tensor: torch.Tensor, grid_dimensions: tuple[int, int], pos
+    in_tensor: torch.Tensor, grid_dimensions: tuple[int, int], pos: int
 ) -> torch.Tensor:
     x_local, y_local, w_local, h_local = in_tensor[1:5]
     rows, cols = grid_dimensions
@@ -75,7 +75,7 @@ def _create_grid_boxes(
     return output_box
 
 
-def MAP_preprocess(input_tensor: torch.Tensor, threshold: float = 0.5):
+def MAP_preprocess(input_tensor: torch.Tensor, threshold: float = 0.5) -> list[dict]:
     """Preprocesses the label or prediction tensor for torchmetrics.MAP calculation.
     Box format: cx cy w h
     Return: A dictionary of Tensor values as specified in torchmetrics docs."""
