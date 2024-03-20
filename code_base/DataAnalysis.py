@@ -91,7 +91,7 @@ class DataAnalysis:
 
             # Get prediction to the corresponding image
             if predictions is not None and i == img_index:
-                is_object = predictions[i][0] >= 0
+                is_object = predictions[i][0] > 0
                 object_pred.append(is_object)
                 predicted_class = (
                     torch.argmax(predictions[i][5:]) if is_object else None
