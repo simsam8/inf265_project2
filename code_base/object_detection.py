@@ -101,7 +101,7 @@ def MAP_preprocess(input_tensor: torch.Tensor, threshold: int=0.5):
                 if cell[0] >= threshold:
                     # Extract local box coords and convert to global coords
                     box = _local_to_global(cell, grid_dimensions, cell_index)[1:5]
-                    label = cell[5].long()
+                    label = cell[5]
                     img_detect["boxes"].append(box.tolist())
                     img_detect["scores"].append(cell[0].item())
                     img_detect["labels"].append(label.item())

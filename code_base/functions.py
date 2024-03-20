@@ -72,9 +72,7 @@ def detection_loss(y_pred: torch.Tensor, y_true: torch.Tensor):
     return loss
 
 
-def compute_performance(
-    y_pred: torch.Tensor, y_true: torch.Tensor, device: torch.device
-):
+def compute_performance(y_pred: torch.Tensor, y_true: torch.Tensor, iou_threshold: float=0.5):
     """
     Computes the accuracy of predictions.
     When the Pc of y_true is 0, no object is present,
@@ -90,11 +88,21 @@ def compute_performance(
     :param y_true: Tensor of size (batch_size, 6). Looks like
                    y_true = [[Pc, bx, by, bh, bw, C]], [...], ...]
                    Where C is the class label (a float, but one of integers 0-9)
-    :return: triple of (accuracy, number of correct predictions, length of y_pred).
-            The last two are included so that it is possible to
-            keep track of the running average across batches/epochs.
+    :return: Dict with performance metrics. 
     """
-    correct = 0
+
+    results = {
+        "detection_correct": 0,
+        "strict_correct": 0, 
+        "box_correct": 0, 
+        "total_box_predictions": 0,
+        "n_predictions": len(y_pred), 
+        "detection_accuracy": 0, 
+        "mean_accuracy": 0, 
+        "box_accuracy": 0, 
+        "strict_accuracy": 0,
+        "n_boxes_true": (y_true[:, 0] == 1).sum().item()
+    }
 
     with torch.no_grad():
         for i, pred in enumerate(y_pred):
@@ -102,10 +110,13 @@ def compute_performance(
             # If predicted Pc is < 0 then confidence is < 0.5 and prediction is correct
             if y_true[i][0] == torch.tensor(0):
                 if pred[0] < 0:
-                    correct += 1
+                    results["strict_correct"] += 1
+                    results["detection_correct"] += 1
 
             else:
                 if pred[0] >= 0:  # Object presence predicted to be more than 50% likely
+                    results["detection_correct"] += 1
+                    results["total_box_predictions"] += 1
                     # Get the predicted class
                     max_value, max_index = torch.max(pred[5:], 0)
                     if max_index == y_true[i][5]:  # Class prediction is correct
@@ -143,10 +154,21 @@ def compute_performance(
 
                         # If IOU > 0.5, the bounding box is "correct"
                         # Both bounding box location and predicted class are deemed correct
-                        if (intersection / union) > 0.5:
-                            correct += 1
-
-    return correct / len(y_pred), correct, len(y_pred)
+                        if (intersection / union) > iou_threshold:
+                            results["strict_correct"] += 1
+                            results["box_correct"] += 1
+    # Compute metrics
+    if results["total_box_predictions"] == 0:
+        pass
+    else: 
+        results["box_accuracy"] = results["box_correct"] / results["total_box_predictions"]
+    results["detection_accuracy"] = results["detection_correct"] / results["n_predictions"]
+    results["mean_accuracy"] = (results["box_accuracy"] + results["detection_accuracy"]) / 2
+    if results["n_boxes_true"] == 0:
+        pass
+    else:
+        results["strict_accuracy"] = results["box_correct"] / results["n_boxes_true"]
+    return results
 
 
 def train(
@@ -164,20 +186,33 @@ def train(
     n_batch_val = len(val_loader)
     losses_train = []
     losses_val = []
-    performance_train = []
-    performance_val = []
+    strict_performance_train = []
+    strict_performance_val = []
+    mean_performance_train = []
+    mean_performance_val = []
+    detection_performance_train = []
+    detection_performance_val = []
+    box_performance_train = []
+    box_performance_val = []
     model.train()
     optimizer.zero_grad()
 
     for epoch in range(1, n_epochs + 1):
         if task == "detection":
-            train_metric = MeanAveragePrecision(box_format="cxcywh", iou_type="bbox")
-            val_metric = MeanAveragePrecision(box_format="cxcywh", iou_type="bbox")
+            train_metric = MeanAveragePrecision(box_format="cxcywh", iou_type="bbox", extended_summary=True)
+            val_metric = MeanAveragePrecision(box_format="cxcywh", iou_type="bbox", extended_summary=True)
         else:
-            n_correct_train = 0.0
-            total_predictions_train = 0
-            n_correct_val = 0.0
-            total_predictions_val = 0
+            # Initialize performance values
+            train_total_strict_correct = 0
+            train_total_box_correct = 0
+            train_total_box_preds = 0          
+            train_total_predictions = 0
+            train_total_detection_correct = 0
+            val_total_strict_correct = 0
+            val_total_box_correct = 0
+            val_total_predictions = 0
+            val_total_detection_correct = 0
+            val_total_box_preds = 0
         loss_train = 0.0
         loss_val = 0.0
 
@@ -196,9 +231,13 @@ def train(
 
             # Keep track of performance
             if task == "localization":
-                _, batch_n_correct, n_preds = compute_performance(outputs, labels, device)
-                total_predictions_train += n_preds
-                n_correct_train += batch_n_correct
+                results = compute_performance(outputs, labels)
+                # print(f"Results for batch {i}: \n{results}")
+                train_total_predictions += results["n_predictions"]
+                train_total_detection_correct += results["detection_correct"]
+                train_total_box_correct += results["box_correct"]
+                train_total_box_preds += results["total_box_predictions"]
+                train_total_strict_correct += results["strict_correct"]
             elif task == "detection":
                 outputs_prep = MAP_preprocess(outputs)
                 labels_prep = MAP_preprocess(labels)
@@ -206,9 +245,13 @@ def train(
 
         losses_train.append(loss_train / n_batch_train)
         if task == "localization":
-            performance_train.append(n_correct_train / total_predictions_train)
+            box_performance_train.append(train_total_box_correct / train_total_box_preds)
+            detection_performance_train.append(train_total_detection_correct / train_total_predictions)
+            strict_performance_train.append(train_total_strict_correct / train_total_predictions)
+            mean_performance_train.append((detection_performance_train[-1] + box_performance_train[-1]) / 2)
         else: 
-            performance_train.append(train_metric.compute()["map"])
+            map_metrics = train_metric.compute()
+            strict_performance_train.append(map_metrics["map"])
 
         model.eval()
         with torch.no_grad():
@@ -219,24 +262,29 @@ def train(
                 outputs = model(imgs)
                 loss = loss_fn(outputs, labels)
                 loss_val += loss.item()
-                if task == "localization":             
-                    _, batch_n_correct, n_preds = compute_performance(
-                        outputs, labels, device
-                    )
-                    total_predictions_val += n_preds
-                    n_correct_val += batch_n_correct
-                elif task == "detection":
-                    outputs_prep = MAP_preprocess(outputs)
-                    labels_prep = MAP_preprocess(labels)
-                    val_metric.update(outputs_prep, labels_prep)
+                # Keep track of performance
+            if task == "localization":
+                results = compute_performance(outputs, labels)
+                val_total_detection_correct += results["detection_correct"]
+                val_total_box_correct += results["box_correct"]
+                val_total_predictions += results["n_predictions"]
+                val_total_box_preds += results["total_box_predictions"]
+                val_total_strict_correct += results["strict_correct"]
 
-            # Computes mean loss over batches
-            losses_val.append(loss_val / n_batch_val)
+            elif task == "detection":
+                outputs_prep = MAP_preprocess(outputs)
+                labels_prep = MAP_preprocess(labels)
+                val_metric.update(outputs_prep, labels_prep)
 
-            if task == "localization":          
-                performance_val.append(n_correct_val / total_predictions_val)
-            else: 
-                performance_val.append(val_metric.compute()["map"])
+        losses_val.append(loss_val / n_batch_val)
+        if task == "localization":
+            box_performance_val.append(val_total_box_correct / val_total_box_preds)
+            detection_performance_val.append(val_total_detection_correct / val_total_predictions)
+            mean_performance_val.append((detection_performance_val[-1] + box_performance_val[-1]) / 2)
+            strict_performance_val.append(val_total_strict_correct / val_total_predictions)
+        else: 
+            map_metrics = val_metric.compute()
+            strict_performance_val.append(map_metrics["map"])
 
 
         if epoch == 1 or epoch % 5 == 0:
@@ -245,11 +293,20 @@ def train(
                 f"Epoch: {epoch}\n"
                 f"train_loss:         {losses_train[-1]:>10.3f}\n"
                 f"val_loss:           {losses_val[-1]:>10.3f}\n"
-                f"train_performance:  {((performance_train[-1])*100):>10.3f}%\n"
-                f"val_performance:    {((performance_val[-1])*100):>10.3f}%\n"
+                f"train_performance:  \n\n    \
+                    Box accuracy: {((box_performance_train[-1])*100):>10.3f}% \
+                    Detection accuracy: {((detection_performance_train[-1])*100):>10.3f}% \n\
+                    Mean accuracy: {((mean_performance_train[-1])*100):>10.3f}% \
+                    Strict accuracy: {((strict_performance_train[-1])*100):>10.3f}%\n\n"
+                f"val_performance:    \n    \
+                    Box accuracy: {((box_performance_val[-1])*100):>10.3f}% \
+                    Detection accuracy: {((detection_performance_val[-1])*100):>10.3f}% \n\
+                    Mean accuracy: {((mean_performance_val[-1])*100):>10.3f}% \
+                    Strict accuracy: {((strict_performance_val[-1])*100):>10.3f}%\n\n\n"
             )
 
-    return losses_train, losses_val, performance_train, performance_val
+    return losses_train, losses_val, detection_performance_train, \
+            detection_performance_val, box_performance_train, box_performance_val
 
 
 def train_models(
