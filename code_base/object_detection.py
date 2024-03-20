@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 from torch.utils.data import TensorDataset
 import matplotlib.pyplot as plt
 from torchvision.ops import box_convert
@@ -98,7 +99,7 @@ def MAP_preprocess(input_tensor: torch.Tensor, threshold: float = 0.5):
                 if cell[0] >= threshold:
                     # Extract local box coords and convert to global coords
                     box = _local_to_global(cell, grid_dimensions, cell_index)[1:5]
-                    label = cell[5].long()
+                    label = F.sigmoid(cell[5]).long()
                     img_detect["boxes"].append(box.tolist())
                     img_detect["scores"].append(cell[0].item())
                     img_detect["labels"].append(label.item())
@@ -144,11 +145,13 @@ def get_converted_data(
 
 
 def plot_instances(dataset, n_instances, predictions=None, grid_dimensions=(2, 3)):
-    fig, axes = plt.subplots(nrows=1, ncols=n_instances)
+    fig, axes = plt.subplots(nrows=1, ncols=n_instances, figsize=(10, 8))
 
     imgs = []
     bboxes_true = []
+    bboxes_pred = []
     true_labels = []
+    pred_labels = []
     for i, (img, label) in enumerate(dataset):
         label = label.permute(1, 2, 0)
         label = torch.flatten(label, 0, 1)
@@ -163,6 +166,22 @@ def plot_instances(dataset, n_instances, predictions=None, grid_dimensions=(2, 3
         ]
         label = [bbox[1:5].clone() for bbox in label if bbox[0] != 0]
         bboxes_true.append(label)
+
+        if predictions is not None:
+            pred_label = predictions[i].permute(1, 2, 0)
+            pred_label = torch.flatten(pred_label, 0, 1)
+            predicted_classes = [
+                str(int(F.sigmoid(bbox[-1]))) for bbox in pred_label if bbox[0] > 0
+            ]
+            pred_labels.append(predicted_classes)
+            pred_label = [
+                _local_to_global(bbox, grid_dimensions, i)
+                for (i, bbox) in enumerate(pred_label)
+                if bbox[0] > 0
+            ]
+            pred_label = [bbox[1:5].clone() for bbox in pred_label if bbox[0] > 0]
+
+            bboxes_pred.append(pred_label)
 
     for i, ax in enumerate(axes.flat):
         img_out = imgs[i]
@@ -179,6 +198,21 @@ def plot_instances(dataset, n_instances, predictions=None, grid_dimensions=(2, 3
             labels=true_labels[i],
             colors="green",
         )
+
+        if predictions is not None:
+            for bbox in bboxes_pred[i]:
+                bbox[0::2] *= img_out.shape[2]
+                bbox[1::2] *= img_out.shape[1]
+
+            # Plot bbox if object is predicted
+            if bboxes_pred[i]:
+
+                pred_boxes = torch.stack(bboxes_pred[i])
+                pred_boxes = torch.clamp_min(pred_boxes, 0)
+                pred_boxes = box_convert(pred_boxes, "cxcywh", "xyxy")
+                img_out = draw_bounding_boxes(
+                    img_out, pred_boxes, labels=pred_labels[i], colors="red"
+                )
 
         ax.imshow(img_out.permute(1, 2, 0))
         ax.axis("off")
