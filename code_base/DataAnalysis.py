@@ -208,7 +208,9 @@ class DataAnalysis:
                 pred_label = predictions[i].permute(1, 2, 0)
                 pred_label = torch.flatten(pred_label, 0, 1)
                 predicted_classes = [
-                    str(int(sigmoid(bbox[-1]))) for bbox in pred_label if bbox[0] > 0
+                    ("1" if sigmoid(bbox[-1]) > 0.5 else "0")
+                    for bbox in pred_label
+                    if bbox[0] > 0
                 ]
                 pred_labels.append(predicted_classes)
                 pred_label = [
