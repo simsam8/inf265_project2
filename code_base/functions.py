@@ -467,6 +467,7 @@ def train_models(
             print("\tCurrent parameters: ")
             [print(f"{key}:{value}") for key, value in hparam.items()]
 
+            torch.manual_seed(seed)
             model = network()
             model.to(device)
             optimizer = optim.Adam(model.parameters(), **hparam)
