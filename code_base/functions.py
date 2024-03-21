@@ -181,6 +181,7 @@ def compute_performance(
     return results
 
 
+# TODO: add early stopping
 def train(
     task: str,
     n_epochs: int,
@@ -334,31 +335,33 @@ def train(
 
         if epoch == 1 or epoch % 5 == 0:
             if task == "localization":
-                print(
-                    f"{datetime.now().time()}\n"
-                    f"Epoch: {epoch}\n"
-                    f"train_loss:         {losses_train[-1]:>10.3f}\n"
-                    f"val_loss:           {losses_val[-1]:>10.3f}\n"
-                    f"train_performance:  \n\n    \
-                        Box accuracy: {((box_performance_train[-1])*100):>10.3f}% \
-                        Detection accuracy: {((detection_performance_train[-1])*100):>10.3f}% \n\
-                        Mean accuracy: {((mean_performance_train[-1])*100):>10.3f}% \
-                        Strict accuracy: {((strict_performance_train[-1])*100):>10.3f}%\n\n"
-                    f"val_performance:    \n    \
-                        Box accuracy: {((box_performance_val[-1])*100):>10.3f}% \
-                        Detection accuracy: {((detection_performance_val[-1])*100):>10.3f}% \n\
-                        Mean accuracy: {((mean_performance_val[-1])*100):>10.3f}% \
-                        Strict accuracy: {((strict_performance_val[-1])*100):>10.3f}%\n\n\n"
+                log_output = (
+                    f"| {datetime.now().time()} | "
+                    + f"Epoch: {epoch} | "
+                    + f"train_loss: {losses_train[-1]:.3f} | "
+                    + f"val_loss: {losses_val[-1]:.3f} |\n"
+                    + "training: "
+                    + f"| Box accuracy: {box_performance_train[-1]*100:.3f}% | "
+                    + f"Detection accuracy: {detection_performance_train[-1]*100:.3f}% | "
+                    + f"Mean accuracy: {mean_performance_train[-1]*100:.3f}% | "
+                    + f"Strict accuracy: {strict_performance_train[-1]*100:.3f}% |\n"
+                    + "validation: "
+                    + f"| Box accuracy: {box_performance_val[-1]*100:.3f}% | "
+                    + f"Detection accuracy: {detection_performance_val[-1]*100:.3f}% | "
+                    + f"Mean accuracy: {mean_performance_val[-1]*100:.3f}% | "
+                    + f"Strict accuracy: {strict_performance_val[-1]*100:.3f}% |\n"
                 )
+                print(log_output)
             elif task == "detection":
-                print(
-                    f"{datetime.now().time()}\n"
-                    f"Epoch: {epoch}\n"
-                    f"train_loss:         {losses_train[-1]:>10.3f}\n"
-                    f"val_loss:           {losses_val[-1]:>10.3f}\n"
-                    f"train_performance:\nStrict accuracy: {((strict_performance_train[-1])*100):>10.3f}%\n\n"
-                    f"val_performance:\nStrict accuracy: {((strict_performance_val[-1])*100):>10.3f}%\n\n\n"
+                log_output = (
+                    f"| {datetime.now().time()} | "
+                    + f"Epoch: {epoch} | "
+                    + f"train_loss: {losses_train[-1]:.3f} | "
+                    + f"val_loss: {losses_val[-1]:.3f} | "
+                    + f"train strict accuracy: {strict_performance_train[-1]*100:.3f}% | "
+                    + f"val Strict accuracy: {strict_performance_val[-1]*100:.3f}% |\n"
                 )
+                print(log_output)
 
     training_result = {
         "loss_train": losses_train,
@@ -385,7 +388,7 @@ def train_models(
     val_loader: DataLoader,
     device: torch.device,
     seed: int,
-) -> dict[str, list[nn.Module | float]]:
+) -> dict[str, list[nn.Module | float | dict]]:
     """
     Trains and returns models with different hyper parameters and
     model architectures.
@@ -413,6 +416,7 @@ def train_models(
 
     grid_search_result = {
         "models": [],
+        "hyper_params": [],
         "loss_train": [],
         "loss_val": [],
         "detection_train": [],
@@ -450,6 +454,7 @@ def train_models(
             )
 
             grid_search_result["models"].append(model)
+            grid_search_result["hyper_params"].append(hparam)
             grid_search_result["loss_train"].append(train_results["loss_train"])
             grid_search_result["loss_val"].append(train_results["loss_val"])
             grid_search_result["detection_train"].append(
@@ -465,9 +470,17 @@ def train_models(
             grid_search_result["strict_train"].append(train_results["strict_train"])
             grid_search_result["strict_val"].append(train_results["strict_val"])
 
-            # print("\n", "-" * 3, "Performance", "-" * 3)
-            # print(f"Training performance: {train_performance[-1]*100:.2f}%")
-            # print(f"Validation performance: {val_performance[-1]*100:.2f}%")
+            print("\n", "-" * 3, "Final Performance", "-" * 3)
+            for key, item in train_results.items():
+                try:
+                    if key in ["loss_train", "loss_val"]:
+                        print(f"{key}:\t\t{item[-1]:.3f}")
+                    elif key in ["detection_train", "mean_perf_train"]:
+                        print(f"{key}:\t{item[-1]*100:.3f}%")
+                    else:
+                        print(f"{key}:\t\t{item[-1]*100:.3f}%")
+                except IndexError:
+                    pass
 
     return grid_search_result
 
