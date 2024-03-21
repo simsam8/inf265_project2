@@ -8,6 +8,29 @@ from datetime import datetime
 from .object_detection import MAP_preprocess
 
 
+class EarlyStop:
+    def __init__(self, patience=1, min_delta=0.0) -> None:
+        self.patience = patience
+        self.min_delta = min_delta
+        self.counter = 0
+        self.min_validation_loss = float("inf")
+
+    def early_stop(self, validation_loss):
+        if (
+            validation_loss > (self.min_validation_loss + self.min_delta)
+            or abs(validation_loss - self.min_validation_loss) <= 1e-4
+        ):
+            self.counter += 1
+            print(f"__Stopping training in {self.patience-self.counter} epochs")
+            if self.counter >= self.patience:
+                return True
+            return False
+        elif validation_loss < self.min_validation_loss:
+            print("__Patience reset") if self.counter != 0 else None
+            self.min_validation_loss = validation_loss
+            self.counter = 0
+
+
 def localization_loss(y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
     """
     Calculates the localization loss.
@@ -179,6 +202,8 @@ def train(
     train_loader: DataLoader,
     val_loader: DataLoader,
     device: torch.device,
+    early_stop_patience: int | None = None,
+    early_stop_min_delta: float = 0.0,
 ) -> dict[str, list[float]]:
     """
     Trains a given model with optimizer. Keeps track of training and
@@ -214,6 +239,9 @@ def train(
     box_performance_val = []
     model.train()
     optimizer.zero_grad()
+
+    if early_stop_patience is not None:
+        early_stopper = EarlyStop(early_stop_patience, early_stop_min_delta)
 
     for epoch in range(1, n_epochs + 1):
         if task == "detection":
@@ -264,7 +292,11 @@ def train(
                 labels_prep = MAP_preprocess(labels)
                 train_metric.update(outputs_prep, labels_prep)
 
-        losses_train.append(loss_train / n_batch_train)
+        loss_train /= n_batch_train
+
+        losses_train.append(loss_train)
+
+        # Calculating train performance
         if task == "localization":
             box_performance_train.append(
                 train_total_box_correct / train_total_box_preds
@@ -305,7 +337,10 @@ def train(
                     labels_prep = MAP_preprocess(labels)
                     val_metric.update(outputs_prep, labels_prep)
 
-        losses_val.append(loss_val / n_batch_val)
+        loss_val /= n_batch_val
+        losses_val.append(loss_val)
+
+        # Calculating validation performance
         if task == "localization":
             box_performance_val.append(val_total_box_correct / val_total_box_preds)
             detection_performance_val.append(
@@ -321,10 +356,10 @@ def train(
             map_metrics = val_metric.compute()
             strict_performance_val.append(map_metrics["map"])
 
-        if epoch == 1 or epoch % 5 == 0:
+        if epoch == 1 or epoch % 10 == 0:
             if task == "localization":
                 log_output = (
-                    f"| {datetime.now().time()} | "
+                    f"\n| {datetime.now().time()} | "
                     + f"Epoch: {epoch} | "
                     + f"train_loss: {losses_train[-1]:.3f} | "
                     + f"val_loss: {losses_val[-1]:.3f} |\n"
@@ -337,19 +372,24 @@ def train(
                     + f"| Box accuracy: {box_performance_val[-1]*100:.3f}% | "
                     + f"Detection accuracy: {detection_performance_val[-1]*100:.3f}% | "
                     + f"Mean accuracy: {mean_performance_val[-1]*100:.3f}% | "
-                    + f"Strict accuracy: {strict_performance_val[-1]*100:.3f}% |\n"
+                    + f"Strict accuracy: {strict_performance_val[-1]*100:.3f}% |"
                 )
                 print(log_output)
             elif task == "detection":
                 log_output = (
-                    f"| {datetime.now().time()} | "
+                    f"\n| {datetime.now().time()} | "
                     + f"Epoch: {epoch} | "
                     + f"train_loss: {losses_train[-1]:.3f} | "
                     + f"val_loss: {losses_val[-1]:.3f} | "
                     + f"train strict accuracy: {strict_performance_train[-1]*100:.3f}% | "
-                    + f"val Strict accuracy: {strict_performance_val[-1]*100:.3f}% |\n"
+                    + f"val Strict accuracy: {strict_performance_val[-1]*100:.3f}% |"
                 )
                 print(log_output)
+
+        if early_stop_patience is not None:
+            if early_stopper.early_stop(loss_val):
+                print(f"--- Stopping early at epoch {epoch} ---")
+                break
 
     training_result = {
         "loss_train": losses_train,
@@ -376,6 +416,8 @@ def train_models(
     val_loader: DataLoader,
     device: torch.device,
     seed: int,
+    early_stop_patience: int | None = None,
+    early_stop_min_delta: float = 0.0,
 ) -> dict[str, list[nn.Module | float | dict]]:
     """
     Trains and returns models with different hyper parameters and
@@ -439,6 +481,8 @@ def train_models(
                 train_loader,
                 val_loader,
                 device,
+                early_stop_patience,
+                early_stop_min_delta,
             )
 
             grid_search_result["models"].append(model)
