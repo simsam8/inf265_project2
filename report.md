@@ -12,11 +12,11 @@ This report aims to explain our approach and design choices for defining, traini
 For general information and setup guidance, please refer to the [README](README.md).
 
 #### Contributions
-- **Simon Vedaa**:
-- **Sebastion Røkholt**:
+There is some overlap, but here is a general overview of what each project member contributed with: 
+- **Simon Vedaa**: Model architecture, loss functions, preprocessing, model training and selection, plotting, documentation and project report
+- **Sebastion Røkholt**: Performance metrics, training loop, documentation and project report
 
 ## Approach and Design choices
-
 
 ### Task 1: Object localization
 **Goal**: Train a CNN that can predict
