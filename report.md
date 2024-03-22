@@ -38,7 +38,11 @@ Details:
 
 
 #### Performance function
-TODO
+We decided to compute four different performance metrics to aid us in evaluating the localization model: 
+1. Detection accuracy:
+2. Box accuracy:
+3. Mean accuracy: 
+4. Strict accuracy: 
 
 
 #### Model architecture
