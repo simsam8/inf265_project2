@@ -16,13 +16,43 @@ If you found the repository helpful, please leave us a star!
 
 ## Setup
 
-The project was created with Python 3.11. To run and replicate our results, make sure to install the project dependencies. 
+**Step 1: Install Git LFS**
+Download Git LFS from [the official website](https://git-lfs.com/) or use a package manager to install it on your system.
+    Windows: Download and run the installer from the website .
+    macOS: Use Homebrew with `brew install git-lfs`.
+    Linux: Use your distribution’s package manager, for example, `sudo apt-get install git-lfs` for Debian/Ubuntu.
+
+After installation, open your terminal or Git Bash (on Windows) and run the following command to set up Git LFS:
+```bash 
+git lfs install 
+```
+
+**Step 2: Clone the repository** 
+If you haven't done so already, clone this repo with
+```bash
+git clone https://github.com/simsam8/inf265_project2.git
+```
+and navigate to the project repository: 
+```bash
+cd inf265_project2
+```
+
+**Step 3: Pull data folder with Git LFS**
+To ensure that all LFS-tracked files are correctly downloaded, use the following command:
+```bash
+git lfs pull
+```
+
+**Step 4: Install project dependencies**
+The project was created with Python 3.11. To run and replicate our results, make sure to install the project's Python dependencies:
 For Windows, run `pip install -r requirements.txt`.
 For Linux, run `pip install -r requirements-linux.txt`.
 
+
+**Step 5: Launch Jupyter Notebook**
 To view and run the notebook, launch Jupyter Notebook with the `jupyter notebook` command in the terminal and simply select the .ipynb file from the directory to open it.
 
-To reproduce our work with identical results, you should set the seed for the randoom state to 265 and train on an Nvidia GPU (CUDA).
+To reproduce our work with identical results, you should set the seed for the random state to 265 and train on an Nvidia GPU (CUDA).
 
 ## File Structure
 
@@ -36,7 +66,7 @@ inf265_project2
 │   ├── train.py    # Code for model training and selection, including loss functions
 │   ├── models.py    # Model architectures
 │   └── object_detection.py    # Helper functions for object detection
-├── data    # Contains the Parquet files used in the project
+├── data    # Contains the Parquet files used in the project. NB! Download requires Git LFS
 │   ├── localization_train.pt
 │   ├── localization_test.pt
 │   ├── localization_val.pt
