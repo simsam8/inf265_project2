@@ -47,8 +47,7 @@ The localization datasets for training, validation and testing contain 77,000 im
 
 ## Normalization
 
-Normalization was the only preprocessing step we performed besides processing the labels.
-For both tasks, all three data sets were normalized with a mean and standard deviation calculated from the training data. 
+Normalization was the only preprocessing step we performed besides processing the labels. For both tasks, all three data sets were normalized with a mean and standard deviation calculated from the training data. 
 
 \newpage
 
@@ -96,20 +95,19 @@ To calculate the total cost of a localization prediction, we use an ensemble of 
 - **Bounding box loss**: Mean square error on bounding box coordinates and size.
 - **Classification loss**: Cross entropy loss on the class predictions.
 
-Details:
-
- - We use cross entropy with logits, as the model's output isn't run through a sigmoid activation.
- - If there is no object in the image, only the detection loss is used. Otherwise the total loss is the sum of the three losses. 
- - Weights are updated after each batch, so the loss used for backpropagation is the mean loss for the current batch.
+We use cross entropy with logits, as the model's output isn't run through a sigmoid activation. If there is no object in the image, only the detection loss is used. Otherwise the total loss is the sum of the three losses. Weights are updated after each batch, so the loss used for backpropagation is the mean loss for the current batch.
 
 
 #### Performance function
 We decided to compute four different performance metrics to aid us in evaluating the localization model: 
-1. Detection accuracy:
-2. Box accuracy:
-3. Mean accuracy: 
-4. Strict accuracy: 
+1. **Detection accuracy**: The prediction accuracy for P_c, i.e. whether the image contains an image or not. 
+2. **Box accuracy**: The accuracy for the correct placement of the predicted bounding box. For each image, the prediction was deemed "correct" if the Intersection Over Union (IOU) value was greater than the threshold, which we set to 0.5. We chose this value because it is the conventional default for IOU, and it seemed to be an appropriate compromise between leniency and strictness when we experimented with different values. 
+3. **Mean accuracy**: The per-image mean of detection and box accuracy. 
+4. **Strict accuracy**: We couldn't find an existing metric that fit this value, so we named this metric "strict" accuracy as it is a challenging metric than a simple mean of the bounding box and detection accuracies. Strict accuracy only counts a prediction as "correct" if:
+ - The model correctly predicts that there is no object in the image, or:
+ - The model correctly predicts that there is an object in the image, correctly locates all objects with an IOU greater than 0.5, and assigns each object the correct class. 
 
+The detection accuracy metric counts a prediction as "correct" if it is able to state whether there is an object present or not. In other words, it answers the question: "How often is the model correct in detecting that there is an object present in the image?" On the other hand, the bounding box accuracy is only computed whenever the image actually contains an object, which provides an answer to the question: "When the model attempts to locate an object, how often does it correctly place the bounding box and assign the correct class?" Combining these two metrics with a simple mean does *not* answer the question of how often a model's predictions for an image were *completely* correct (detection, localization(s) and classification(s) were all correct). This question is answered by the "strict" accuracy metric. 
 
 ### Model architectures
 
@@ -161,18 +159,22 @@ The last layer is the output of the model.
  - Which digits have been detected (out of two possibilities: 0 or 1)
 
 ### Detection grid
-TODO
+The input images were small and wide, and when we looked a selection of images from the training dataset, we couldn't see many objects that covered an area less than 1/10th or more than 1/6th of the total image. The images with multiple digits also didn't seem to have them very close together. Therefore, we decided to use  relatively large grid size of 2x3. In the future, we would like to experiment more thoroughly with a variation of different grid shapes. 
+
+Since we needed to use local (cell) coordinates for the loss function, we wrote a function ```_global_to_local``` that converted the image object coordinates from the global location to the coordinates corresponding to the local cell location. However, when we calculated the IOU for the box accuracy performance metric, we needed to convert local prediction coordinates back to global coordinates, so we also had to write the function ```_local_to_global```.
 
 ### Loss function
 
 The loss function for object detection is similar to localization.
 The loss becomes the sum of localization loss for each grid cell.
-We vectorized the localization on grid cells to speed up loss calculation.
-The final loss is the the batch mean of the summed losses.
+We vectorized the localization on grid cells to speed up the loss calculation.
+As in localization, the final loss is the the batch mean of the summed losses.
 
 
 ### Performance function
-TODO
+For object detection, we decided to only use the Mean Average Precision (MAP) metric, which we calculated by converting the label and prediction tensors to a format we could then input to the ```MeanAveragePrecision``` metric class in the ```torchmetrics``` package. 
+
+For each object class, ```MeanAveragePrecision``` first calculates the Average Precision (AP) by computing the precision and recall at different threshold levels. The AP is then the area under the precision-recall curve. Then, it calculates the mean of the AP's for all classes. For our evaluation, we use the default range of thresholds from 0.5 to 0.95 with a step size of 0.05. 
 
 ### Model architectures
 
