@@ -470,7 +470,7 @@ def train_models(
             torch.manual_seed(seed)
             model = network()
             model.to(device)
-            optimizer = optim.Adam(model.parameters(), **hparam)
+            optimizer = optim.SGD(model.parameters(), **hparam)
 
             print(f"Starting training for {task} using above parameters:\n")
             train_results = train(
