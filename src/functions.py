@@ -9,6 +9,9 @@ from .object_detection import MAP_preprocess
 
 
 class EarlyStop:
+    """
+    Class implementation of early stopping during training.
+    """
     def __init__(self, patience=1, min_delta=0.0) -> None:
         self.patience = patience
         self.min_delta = min_delta
@@ -192,7 +195,6 @@ def compute_performance(
     return results
 
 
-# TODO: add early stopping
 def train(
     task: str,
     n_epochs: int,

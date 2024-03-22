@@ -43,6 +43,17 @@ def _global_to_local(
 def _local_to_global(
     in_tensor: torch.Tensor, grid_dimensions: tuple[int, int], pos: int
 ) -> torch.Tensor:
+    """
+    Converts local bounding box values to global.
+
+    Parameters:
+    in_tensor: tensor containing bounding box in the form of ->
+                [p_c, x, y, w, h, c ...]
+    grid_dimensions: tuple of n_rows and n_cols
+    pos: index of the grid cell in flattened list
+
+    return: converted tensor
+    """
     x_local, y_local, w_local, h_local = in_tensor[1:5]
     rows, cols = grid_dimensions
     cell_w = 1 / cols
@@ -66,6 +77,16 @@ def _local_to_global(
 def _create_grid_boxes(
     label_list: list[torch.Tensor], grid_dimensions: tuple[int, int]
 ) -> torch.Tensor:
+    """
+    Converts a list of tensors into a nxm grid tensor.
+
+    Parameters:
+    label_list: list of tensors containing bounding boxes in the form of ->
+                [p_c, x, y, w, h, c ...]
+    grid_dimensions: tuple of n_rows and n_cols
+
+    return: tensor with shape n_classes x rows x cols
+    """
     h, w = grid_dimensions
     output_box = torch.zeros((h, w, 6))
     for label in label_list:
@@ -118,6 +139,11 @@ def get_converted_data(
     """
     Get training, validation, and test datasets with labels
     converted into to a given grid size.
+
+    Parameters:
+    grid_dimensions: dimensions of the grid
+
+    return: converted train, val, test datasets
     """
 
     list_train = torch.load("data/list_y_true_train.pt")
