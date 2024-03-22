@@ -16,7 +16,7 @@ If you found the repository helpful, please leave us a star!
 
 ## Setup
 
-**Step 1: Install Git LFS**
+**Step 1: Install Git LFS**</br>
 Download Git LFS from [the official website](https://git-lfs.com/) or use a package manager to install it on your system.
     Windows: Download and run the installer from the website .
     macOS: Use Homebrew with `brew install git-lfs`.
@@ -27,7 +27,7 @@ After installation, open your terminal or Git Bash (on Windows) and run the foll
 git lfs install 
 ```
 
-**Step 2: Clone the repository** 
+**Step 2: Clone the repository**</br>
 If you haven't done so already, clone this repo with
 ```bash
 git clone https://github.com/simsam8/inf265_project2.git
@@ -37,19 +37,19 @@ and navigate to the project repository:
 cd inf265_project2
 ```
 
-**Step 3: Pull data folder with Git LFS**
+**Step 3: Pull data folder with Git LFS**</br>
 To ensure that all LFS-tracked files are correctly downloaded, use the following command:
 ```bash
 git lfs pull
 ```
 
-**Step 4: Install project dependencies**
+**Step 4: Install project dependencies**</br>
 The project was created with Python 3.11. To run and replicate our results, make sure to install the project's Python dependencies:
 For Windows, run `pip install -r requirements.txt`.
 For Linux, run `pip install -r requirements-linux.txt`.
 
 
-**Step 5: Launch Jupyter Notebook**
+**Step 5: Launch Jupyter Notebook**</br>
 To view and run the notebook, launch Jupyter Notebook with the `jupyter notebook` command in the terminal and simply select the .ipynb file from the directory to open it.
 
 To reproduce our work with identical results, you should set the seed for the random state to 265 and train on an Nvidia GPU (CUDA).
