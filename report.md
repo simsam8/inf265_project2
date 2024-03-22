@@ -320,7 +320,7 @@ Performance graphs of selected model:
 
 ![Loss](imgs/detection/loss.png){width=70%}
 
-![Strict Accuracy](imgs/detection/strict.png){width=70%}
+![MAP](imgs/detection/map.png){width=70%}
 
 \newpage
 
