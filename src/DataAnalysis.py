@@ -49,18 +49,21 @@ class DataAnalysis:
 
     @staticmethod
     def plot_performance_over_time(
-        train_loss: list[float],
-        val_loss: list[float],
+        train_perf: list[float],
+        val_perf: list[float],
         title: str,
         y_label: str,
         label1: str = "Train",
         label2: str = "Val",
         save_to_file: str | None = None,
     ) -> None:
+        """
+        Creates a plot of training and validation loss/performance over time.
+        """
         fig, ax = plt.subplots()
         ax.set_title(title)
-        ax.plot(train_loss, label=label1)
-        ax.plot(val_loss, label=label2)
+        ax.plot(train_perf, label=label1)
+        ax.plot(val_perf, label=label2)
         ax.legend()
 
         plt.ylabel(y_label)

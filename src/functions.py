@@ -9,6 +9,9 @@ from .object_detection import MAP_preprocess
 
 
 class EarlyStop:
+    """
+    Class implementation of early stopping during training.
+    """
     def __init__(self, patience=1, min_delta=0.0) -> None:
         self.patience = patience
         self.min_delta = min_delta
@@ -192,7 +195,6 @@ def compute_performance(
     return results
 
 
-# TODO: add early stopping
 def train(
     task: str,
     n_epochs: int,
@@ -470,7 +472,7 @@ def train_models(
             torch.manual_seed(seed)
             model = network()
             model.to(device)
-            optimizer = optim.Adam(model.parameters(), **hparam)
+            optimizer = optim.SGD(model.parameters(), **hparam)
 
             print(f"Starting training for {task} using above parameters:\n")
             train_results = train(
