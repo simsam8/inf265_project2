@@ -24,42 +24,31 @@ There is some overlap, but here is a general overview of what each project membe
 
 # Data Exploration, Analysis and Preprocessing
 
-For both tasks the input consists of images of digits, with 
-values lying between 0 and 1. In localization, there is only one or 
-no digit per image. In detection, there are one or two digits per image.
-Images in both datasets are of size 48x60, with only a single channel.
+For both tasks, the inputs are 48x60 black and white (single channel) images containing digits that have been randomly shifted, rotated and resized. For object localization, the images either contain no objects or a single integer digit in the range 0 - 9. For object detection, the images contain none, one or multiple digits that are either 1's or 0's.
 
 ## Labels 
 
-The labels in localization includes the following:
+Each image in the dataset has a corresponding (ground truth) label. The label is a 6-dimensional vector that includes
 
-- Proababilty of object: Whether there is a digit present or not.
-- Center x: The x coordinate of the bounding box.
-- Center y: The y coordinate of the bounding box.
-- Height: The height of the bounding box.
-- Width: The width of the bounding box.
-- Class: Which digit the image contains.
-
-
-The labels in detection uses the same values as in localization,
-but instead of having one label for the whole image, the images and labels 
-are divided into a grid. The label then becomes a collection of the labels 
-of each grid cell.
-This requires a preprocessing step, which includes translating the global 
-bounding box coordinates, into local coordinates relative to the grid cell.
-The processed labels then becomes a $n * m * 6$ tensor.
-In our project, we chose to use a grid of 2 rows and 3 columns, 2x3.
+1. **P_c**: The probabilty of there being an object in the image, i.e. whether there is a digit present or not.
+2. **x**: The x coordinate of the bounding box centre.
+3. **y**: The y coordinate of the bounding box centre.
+4. **h**: The pixel height of the bounding box.
+5. **w**: The pixel width of the bounding box.
+6. **C**: The object class, i.e. which digit the image contains. 
 
 
-## Class distribution
+For detection, we use the same label vector values as in localization, but instead of having one label for the whole image, the images and labels are sub-divided into a grid. The ground truth label then becomes a collection of the labels for each grid cell. This necessitates a preprocessing step where the global bounding box coordinates are translated into local coordinates that are relative to the object's grid cell. For an $n * m$ grid, the new label becomes a tensor of shape (n, m, 6). For this project, we decided to use a grid size of 2 x 3, creating a total of 6 grid cell labels for each image.
 
-The classes are equally distributed, and no significant imbalance is found.
+
+## Datset size and distribution
+The localization datasets for training, validation and testing contain 77,000 images in total with a split of 77%, 9% and 14% of the data, respectively. In each dataset, the classes are equally distributed. See the [object localization notebook](https://github.com/simsam8/inf265_project2/blob/main/notebooks/object_localization.ipynb) for more details. 
 
 
 ## Normalization
 
-The only preprocessing step besides processing the labels, is normalization.
-For each task, the input data is normalized based on values from training data.
+Normalization was the only preprocessing step we performed besides processing the labels.
+For both tasks, all three data sets were normalized with a mean and standard deviation calculated from the training data. 
 
 \newpage
 
