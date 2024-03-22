@@ -98,13 +98,13 @@ To calculate the total cost of a localization prediction, we use an ensemble of 
 We use cross entropy with logits, as the model's output isn't run through a sigmoid activation. If there is no object in the image, only the detection loss is used. Otherwise the total loss is the sum of the three losses. Weights are updated after each batch, so the loss used for backpropagation is the mean loss for the current batch.
 
 
-#### Performance function
+### Performance function
 
 We decided to compute four different performance metrics to aid us in evaluating the localization model: 
 
 1. **Detection accuracy**: The prediction accuracy for P_c, i.e. whether the image contains an image or not. 
 
-2. **Box accuracy**: The accuracy for the correct placement of the predicted bounding box. For each image, the prediction was deemed "correct" if the Intersection Over Union (IOU) value was greater than the threshold, which we set to 0.5. We chose this value because it is the conventional default for IOU, and it seemed to be an appropriate compromise between leniency and strictness when we experimented with different values. 
+2. **Box accuracy**: The accuracy for the correct placement of the predicted bounding box. For each image, the prediction was deemed "correct" if the Intersection Over Union (IOU) value was greater than the threshold, which we set to 0.5. We chose this value because it is the conventional default for IOU, and it seemed to be an appropriate compromise between leniency and strictness when we experimented with different values. In order to gain a greater understanding of how this metric is calculated, our implementation of box accuracy and IOU is written completely from scratch, as opposed to using `torchvision`'s `box_iou` function. It is written with simple, unoptimized, easily readable code, which had a moderate performance impact on our training loop. 
 
 3. **Mean accuracy**: The per-image mean of detection and box accuracy. 
 
