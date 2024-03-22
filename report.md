@@ -247,7 +247,7 @@ and trained for maximum 50 epochs.
 
 ## Model selection
 
-In both tasks, the model with the highest strict accuracy is chosen for testing.
+For the localization task, we selected the model with the highest "strict" accuracy. For object detection, we chose the model with the highest MAP score. 
 As it takes a while to train, we have only chosen to grid search over the 
 parameters of the optimizer. The parameters were chosen somewhat arbitrarely,
 as we did not have enough time for a more thorough selection.
@@ -330,11 +330,10 @@ The chosen architecture for localization was LocalNet2. That is not too suprisin
 as it is the most complex model out the localization architectures. Looking at 
 the loss (Figure 3), it seems that the model could be improved further. Both validation 
 loss and performance oscillates, while training has a smooth curve. Given more training 
-time, the model could improve, or possibly start to overfit. It is possible that the criteria 
-for early stopping was too strict.
+time, the model will likely see an improvement before starting to overfit. The criteria 
+for early stopping may have been too strict.
 
-I think the model might be too shallow, and therfore struggles to increase the performance. 
-For example, using a residual convolutional network would allow us to create a much deeper network.
+The model loss quickly converged during training and we weren't able to see any significant improvement to model performance by inceasing the training time. We therefore believe that the model isn't able to sufficiently capture the complexity of the training data. We find it likely that the model isn't able to compute useful high-level features, because it has a low capacity due to the shallowness of the network. The network architecture could therefore be significantly improved by greatly increasing the number of layers, which can be achieved by using a residual convolutional network. 
 
 #### Test performance
 
@@ -378,15 +377,15 @@ $$ $$ <!-- This is neccesary for spacing reasons XD -->
 ### Detection
 
 The selected model architecture for detection was DetectNet2_2x3. This is also not 
-suprising, as it is almost double the depth as DetectNet1_2x3. It's performance 
-however is rather poor, only achieving 6.19% in strict accuracy. Looking at its loss 
-curve (Figure 6), it seems to have converged to a minimum, and probably would not benefit 
-from training longer. To improve performance on this task, it is probably neccesary to 
-use a much deeper network and let it train longer than 50 epochs.
+suprising, as it is almost twice as deep as DetectNet1_2x3. However, its performance is poor, achieving a Mean Average Precision of 6.19%. This means that the model likely has both low precision (i.e. it has a high number of false positives) and low recall (i.e. it misses a significant number of actual objects). 
+
+Looking at its loss 
+curve (Figure 6), the model seems to have converged to a minimum, and probably would not benefit 
+from increased training time. As this task is more challenging than localization, we believe that the model faces the same problems as the localization model and that similar improvements need to be made: Increase the number of layers and let it train longer than 50 epochs.
 
 | Performance measure   |     |
 |--------------- | --------------- |
-| Strict accuracy  | 6.19%   |
+| Mean Average Precision  | 6.19%   |
 
 
 #### Predictions
