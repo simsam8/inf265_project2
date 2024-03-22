@@ -42,7 +42,7 @@ For detection, we use the same label vector values as in localization, but inste
 
 
 ## Datset size and distribution
-The localization datasets for training, validation and testing contain 77,000 images in total with a split of 77%, 9% and 14% of the data, respectively. In each dataset, the classes are equally distributed. See the [object localization notebook](https://github.com/simsam8/inf265_project2/blob/main/notebooks/object_localization.ipynb) for more details. 
+The localization datasets for training, validation and testing contain 77,000 images in total with a split of 77%, 9% and 14% of the data, respectively. In each dataset, the classes are equally distributed. See the [object localization notebook](notebooks/object_localization.ipynb) for more details. 
 
 
 ## Normalization
@@ -99,13 +99,18 @@ We use cross entropy with logits, as the model's output isn't run through a sigm
 
 
 #### Performance function
+
 We decided to compute four different performance metrics to aid us in evaluating the localization model: 
+
 1. **Detection accuracy**: The prediction accuracy for P_c, i.e. whether the image contains an image or not. 
+
 2. **Box accuracy**: The accuracy for the correct placement of the predicted bounding box. For each image, the prediction was deemed "correct" if the Intersection Over Union (IOU) value was greater than the threshold, which we set to 0.5. We chose this value because it is the conventional default for IOU, and it seemed to be an appropriate compromise between leniency and strictness when we experimented with different values. 
+
 3. **Mean accuracy**: The per-image mean of detection and box accuracy. 
+
 4. **Strict accuracy**: We couldn't find an existing metric that fit this value, so we named this metric "strict" accuracy as it is a challenging metric than a simple mean of the bounding box and detection accuracies. Strict accuracy only counts a prediction as "correct" if:
- - The model correctly predicts that there is no object in the image, or:
- - The model correctly predicts that there is an object in the image, correctly locates all objects with an IOU greater than 0.5, and assigns each object the correct class. 
+     - The model correctly predicts that there is no object in the image, or:
+     - The model correctly predicts that there is an object in the image, correctly locates all objects with an IOU greater than 0.5, and assigns each object the correct class. 
 
 The detection accuracy metric counts a prediction as "correct" if it is able to state whether there is an object present or not. In other words, it answers the question: "How often is the model correct in detecting that there is an object present in the image?" On the other hand, the bounding box accuracy is only computed whenever the image actually contains an object, which provides an answer to the question: "When the model attempts to locate an object, how often does it correctly place the bounding box and assign the correct class?" Combining these two metrics with a simple mean does *not* answer the question of how often a model's predictions for an image were *completely* correct (detection, localization(s) and classification(s) were all correct). This question is answered by the "strict" accuracy metric. 
 
@@ -172,6 +177,7 @@ As in localization, the final loss is the the batch mean of the summed losses.
 
 
 ### Performance function
+
 For object detection, we decided to only use the Mean Average Precision (MAP) metric, which we calculated by converting the label and prediction tensors to a format we could then input to the ```MeanAveragePrecision``` metric class in the ```torchmetrics``` package. 
 
 For each object class, ```MeanAveragePrecision``` first calculates the Average Precision (AP) by computing the precision and recall at different threshold levels. The AP is then the area under the precision-recall curve. Then, it calculates the mean of the AP's for all classes. For our evaluation, we use the default range of thresholds from 0.5 to 0.95 with a step size of 0.05. 
@@ -319,10 +325,6 @@ Performance graphs of selected model:
 \newpage
 
 ## Evaluation
-- Evaluation of the best model
-- What worked well, what didn't. Challenges. Overall process
-- Further improvements that could be made
-
 
 ### Localization
 
