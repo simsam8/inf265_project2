@@ -41,8 +41,46 @@ Details:
 TODO
 
 
-#### Model architecture
-TODO
+#### Model architectures
+
+Two model architectures have been created for this task. Both are relatively simple
+architectures, one being deeper than the other. Stride is 1 in all convolutional
+layers in both architectures.
+
+##### LocalNet1
+
+- Conv 1: in_channels=1, out_channels=3, padding=0
+- MaxPool 2x2 with stride=2
+- Conv 2: in_channels=3, out_channels=8, padding=0
+- MaxPool 2x2 with stride=2
+- fc1: input=1040, output=120
+- fc2: input=120, output=60
+- fc3: input=60, output=15
+
+Both convolutional layers and the first the fully connected layers are 
+passed through a relu. The output of the last fully
+connected layer is the output of the model.
+
+
+##### LocalNet2
+
+- Conv 1: in_channels=1, out_channels=6, padding=1
+- MaxPool 2x2 with stride=2
+- Conv 2: in_channels=6, out_channels=12, padding=1
+- MaxPool 2x2 with stride=2
+- Conv 3: in_channels=12, out_channels=24, padding=1
+- MaxPool 3x3 with stride=3
+- Conv 4: in_channels=24, out_channels=48, padding=1
+- fc1: input=960, output=960
+- fc2: input=960, output=320
+- fc3: input=320, output=80
+- fc4: input=80, output=15
+
+All convolutional layers and the three first fully connected layers
+are passed through a relu activation function.
+The last layer is the output of the model.
+
+
 
 ### Task 2: Object detection
 
@@ -66,7 +104,45 @@ The final loss is the the batch mean of the summed losses.
 TODO
 
 #### Model architectures
-TODO
+
+Both models consist only of convolutional layers, and both outputs
+a 2x3 grid with 6 channels. Stride is 1 for all convolutional layers in 
+both architectures.
+
+
+##### DetectNet1_2x3
+
+- Conv 1: in_channels=1, out_channels=2, padding=1, kernel=3x3
+- MaxPool 2x2 with stride=2
+- Conv 2: in_channels=2, out_channels=4, padding=1, kernel=3x3
+- MaxPool 2x2 with stride=2
+- Conv 3: in_channels=4, out_channels=6, padding=1, kernel=3x3
+- MaxPool 3x3 with stride=3
+- Conv 4: in_channels=6, out_channels=6, padding=0, kernel=3x3
+
+All convolutional layers except the last,
+are passed through a relu activation function.
+
+
+
+##### DetectNet2_2x3
+
+- Conv 1: in_channels=1, out_channels=2, padding=1, kernel=3x3
+- Conv 2: in_channels=2, out_channels=4, padding=1, kernel=3x3
+- MaxPool 2x2 with stride=2
+- Conv 3: in_channels=4, out_channels=8, padding=1, kernel=3x3
+- Conv 4: in_channels=8, out_channels=16, padding=1, kernel=3x3
+- MaxPool 2x2 with stride=2
+- Conv 5: in_channels=16, out_channels=32, padding=1, kernel=3x3
+- Conv 6: in_channels=32, out_channels=32, padding=1, kernel=3x3
+- MaxPool 3x3 with stride=3
+- Conv 7: in_channels=32, out_channels=16, padding=1, kernel=3x3
+- Conv 8: in_channels=16, out_channels=8, padding=1, kernel=3x3
+- Conv 9: in_channels=8, out_channels=6, padding=0, kernel=3x3
+
+All convolutional layers except the last,
+are passed through a relu activation function.
+
 
 ## Model training, selection and evaluation
 
